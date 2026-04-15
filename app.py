@@ -268,6 +268,34 @@ st.markdown("""
         .title-main { font-size: 1.9rem; }
         .lookup-card { padding: 26px 18px; }
     }
+    /* Cải thiện metric điểm môn */
+    [data-testid="metric-container"] {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(184,146,42,0.35) !important;
+        border-radius: 14px !important;
+        padding: 18px 12px !important;
+        min-height: 110px;
+    }
+    [data-testid="metric-container"] label {
+        font-size: 0.78rem !important;
+        letter-spacing: 0.12em !important;
+    }
+    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+        font-size: 2.4rem !important;
+        color: #e8c96d !important;
+    }
+
+    /* Làm tổng điểm nổi bật hơn */
+    .total-box {
+        background: linear-gradient(135deg, rgba(184,146,42,0.15), rgba(184,146,42,0.06)) !important;
+        border: 2px solid rgba(232,201,109,0.45) !important;
+        box-shadow: 0 0 35px rgba(232,201,109,0.25) !important;
+    }
+    .total-value {
+        font-size: 4.2rem !important;
+        line-height: 1 !important;
+        text-shadow: 0 0 30px rgba(232,201,109,0.7) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -507,12 +535,12 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     return {
         "found": True,
         "data": {
-            "Họ và Tên": row.get("Họ và Tên", "Không có tên"),
-            "Ngày sinh": row.get("Ngày sinh", ""),
-            "Số báo danh": row.get("Số báo danh", ""),
+            "Họ và Tên": str(row.get("Họ và Tên", "Không có tên")).strip(),
+            "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
+            "Số báo danh": str(row.get("Số báo danh", "")).strip(),
             "Công nghệ": row.get("Công nghệ", "N/A"),
             "GD ĐP": row.get("GD ĐP", "N/A"),
-            "Tổng điểm": row.get("Tổng điểm", row.get("Công nghệ", 0) + row.get("GD ĐP", 0)),  # fallback nếu thiếu cột Tổng điểm
+            # Không cần cột "Tổng điểm" nữa vì ta tính động
         }
     }
 def generate_qr(data):
@@ -543,34 +571,58 @@ def generate_pdf(data):
 # HIỂN THỊ KẾT QUẢ
 # ============================================================
 def display_score_result(data: dict):
+    # Tính tổng điểm thực tế từ 2 môn (vì sheet chưa có cột Tổng điểm)
+    try:
+        diem_cn = float(data.get("Công nghệ", 0))
+        diem_gd = float(data.get("GD ĐP", 0))
+        tong_diem = diem_cn + diem_gd
+        tong_toi_da = 20.0   # Hiện tại chỉ có 2 môn
+    except:
+        tong_diem = 0.0
+        tong_toi_da = 20.0
+
     st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="result-header">
         <div style="font-size:1.8rem; margin-bottom:10px;">🎓</div>
-        <div class="result-name">{data["Họ và Tên"]}</div>
+        <div class="result-name">{data.get("Họ và Tên", "Thí sinh")}</div>
         <div class="result-info">
-            📅 {data["Ngày sinh"]} &nbsp;·&nbsp; 🔢 SBD: <strong style="color:#e8c96d">{data["Số báo danh"]}</strong>
+            📅 {data.get("Ngày sinh", "")} &nbsp;·&nbsp; 🔢 SBD: <strong style="color:#e8c96d">{data.get("Số báo danh", "")}</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="result-body">', unsafe_allow_html=True)
-    st.markdown('<p class="score-label">Kết quả các môn thi</p>', unsafe_allow_html=True)
+    st.markdown('<p class="score-label">KẾT QUẢ CÁC MÔN THI</p>', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+    # Hai cột điểm môn - làm to và nổi bật hơn
+    col1, col2 = st.columns(2, gap="large")
     with col1:
-        st.metric(label="Công nghệ", value=str(data["Công nghệ"]))
+        st.metric(
+            label="Công nghệ",
+            value=f"{data.get('Công nghệ', 'N/A')}",
+            delta=None
+        )
     with col2:
-        st.metric(label="📖 GD ĐP", value=str(data["GD ĐP"]))
-    
+        st.metric(
+            label="GD ĐP",
+            value=f"{data.get('GD ĐP', 'N/A')}",
+            delta=None
+        )
+
+    # Box tổng điểm - đã chỉnh lại thành /20.0 và làm đẹp hơn
     st.markdown(f"""
-    <div class="total-box">
-        <div class="total-label">🏆 Tổng điểm</div>
-        <div class="total-value">{data["Tổng điểm"]}</div>
-        <div class="total-max">/ 30.0 điểm</div>
+    <div class="total-box" style="margin-top: 24px;">
+        <div class="total-label">🏆 TỔNG ĐIỂM</div>
+        <div class="total-value" style="font-size: 3.8rem;">{tong_diem}</div>
+        <div class="total-max" style="font-size: 1.1rem; margin-top: 8px;">
+            / {tong_toi_da} điểm
+        </div>
     </div>
-    <div class="timestamp-line">✓ Tra cứu thành công · {datetime.now().strftime("%H:%M:%S — %d/%m/%Y")}</div>
+    <div class="timestamp-line">
+        ✓ Tra cứu thành công · {datetime.now().strftime("%H:%M:%S — %d/%m/%Y")}
+    </div>
     """, unsafe_allow_html=True)
 
     st.markdown("</div></div>", unsafe_allow_html=True)
