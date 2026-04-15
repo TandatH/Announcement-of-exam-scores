@@ -1,0 +1,15 @@
+# Bảo vệ thông tin nhạy cảm - KHÔNG commit lên GitHub
+.streamlit/secrets.toml
+
+# File JSON service account (nếu lưu local)
+*.json
+service_account*.json
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
