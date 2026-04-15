@@ -448,57 +448,58 @@ def validate_sbd(sbd: str) -> bool:
 
 def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     df = load_score_data()
-
     if df.empty:
-        st.error("Data rỗng")
+        st.error("❌ Không tải được dữ liệu điểm thi từ Google Sheets.")
         return {"found": False, "data": None}
 
-    # ========================
-    # DEBUG DATA
-    # ========================
-    st.write("DEBUG DATA HEAD:")
-    st.dataframe(df.head())
-
-    # ========================
-    # CLEAN SBD
-    # ========================
-    df["_sbd"] = df["Số báo danh"].astype(str).str.strip()
     sbd_input = str(sbd).strip()
 
-    # ========================
-    # CLEAN DATE (CỰC KỲ QUAN TRỌNG)
-    # ========================
-    df["_ngay_sinh"] = pd.to_datetime(
-        df["Ngày sinh"],
-        dayfirst=True,
-        errors="coerce"
-    ).dt.strftime("%d/%m/%Y")
+    # Clean SBD
+    df["_sbd"] = df["Số báo danh"].astype(str).str.strip().str.zfill(6)  # đảm bảo 6 chữ số
 
+    # Clean Ngày sinh - cách chắc chắn nhất
+    def normalize_dob(date_val):
+        if pd.isna(date_val) or str(date_val).strip() == "":
+            return None
+        try:
+            # Thử nhiều format phổ biến
+            for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%m/%d/%Y"]:
+                try:
+                    return pd.to_datetime(date_val, format=fmt, errors='coerce').strftime("%d/%m/%Y")
+                except:
+                    continue
+            # Nếu không được thì fallback dayfirst
+            return pd.to_datetime(date_val, dayfirst=True, errors='coerce').strftime("%d/%m/%Y")
+        except:
+            return None
+
+    df["_ngay_sinh"] = df["Ngày sinh"].apply(normalize_dob)
+
+    # Normalize input ngày sinh
     try:
-        input_date = pd.to_datetime(
-            ngay_sinh,
-            dayfirst=True
-        ).strftime("%d/%m/%Y")
+        input_date = pd.to_datetime(ngay_sinh, dayfirst=True, errors='coerce').strftime("%d/%m/%Y")
+        if pd.isna(input_date):  # nếu input sai format
+            st.error("❌ Ngày sinh nhập không đúng định dạng (DD/MM/YYYY)")
+            return {"found": False, "data": None}
     except:
-        st.error("Ngày sinh nhập sai format")
+        st.error("❌ Ngày sinh nhập không đúng định dạng.")
         return {"found": False, "data": None}
 
-    # ========================
-    # DEBUG SO SÁNH
-    # ========================
-    st.write("INPUT:", sbd_input, input_date)
-    st.write("DATA SAMPLE:", df[["_sbd", "_ngay_sinh"]].head())
-
-    # ========================
-    # MATCH
-    # ========================
+    # Match (không phân biệt hoa thường, bỏ khoảng trắng thừa)
     matched = df[
         (df["_sbd"] == sbd_input) &
         (df["_ngay_sinh"] == input_date)
-    ]
+    ].copy()
 
     if matched.empty:
-        st.error("❌ Không tìm thấy (debug mode)")
+        # Debug tạm thời (chỉ hiện khi không tìm thấy)
+        with st.expander("🔍 Debug thông tin tra cứu (chỉ admin thấy)", expanded=False):
+            st.write("**SBD input:**", sbd_input)
+            st.write("**Ngày sinh input (normalized):**", input_date)
+            st.write("**Danh sách SBD trong dữ liệu:**", df["_sbd"].unique().tolist())
+            st.write("**Danh sách ngày sinh normalized:**", df["_ngay_sinh"].dropna().unique().tolist())
+            st.dataframe(df[["Họ và Tên", "Ngày sinh", "_ngay_sinh", "Số báo danh", "_sbd"]].head(10))
+        
         return {"found": False, "data": None}
 
     row = matched.iloc[0]
@@ -506,12 +507,12 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     return {
         "found": True,
         "data": {
-            "Họ và Tên": row.get("Họ và Tên", ""),
+            "Họ và Tên": row.get("Họ và Tên", "Không có tên"),
             "Ngày sinh": row.get("Ngày sinh", ""),
             "Số báo danh": row.get("Số báo danh", ""),
             "Công nghệ": row.get("Công nghệ", "N/A"),
             "GD ĐP": row.get("GD ĐP", "N/A"),
-            "Tổng điểm": row.get("Tổng điểm", "N/A"),
+            "Tổng điểm": row.get("Tổng điểm", row.get("Công nghệ", 0) + row.get("GD ĐP", 0)),  # fallback nếu thiếu cột Tổng điểm
         }
     }
 def generate_qr(data):
