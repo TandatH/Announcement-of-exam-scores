@@ -3,7 +3,7 @@
 
 # File JSON service account (nếu lưu local)
 *.json
-diemcuoihk2*.json
+service_account*.json
 credentials*.json
 
 # Python
