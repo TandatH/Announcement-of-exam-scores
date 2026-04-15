@@ -1,9 +1,7 @@
 """
 ================================================================================
   ỨNG DỤNG TRA CỨU ĐIỂM THI - app.py
-  Tác giả: Được tạo bởi Claude (Anthropic)
-  Mô tả: Ứng dụng Streamlit tra cứu điểm thi từ Google Sheets
-         với cơ chế bảo mật chống dò điểm theo IP.
+  Tra cứu bằng: Ngày sinh + Số báo danh (không cần nhập tên)
 ================================================================================
 """
 
@@ -14,256 +12,282 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import re
 import unicodedata
-import json
-import time
 
 # ============================================================
-# CẤU HÌNH TRANG - Phải đặt đầu tiên trước mọi lệnh Streamlit
+# CẤU HÌNH TRANG
 # ============================================================
 st.set_page_config(
     page_title="Tra Cứu Điểm Thi",
-    page_icon="📋",
+    page_icon="🎓",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
 
 # ============================================================
-# CSS TÙNG CHỈNH - Giao diện đẹp, chuyên nghiệp
+# CSS — Giao diện Luxury Dark Academy
 # ============================================================
 st.markdown("""
 <style>
-    /* Import font tiếng Việt đầy đủ */
-    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:wght@700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
 
-    /* Đảm bảo toàn bộ trang dùng font hỗ trợ tiếng Việt */
-    html, body, * {
-        font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif !important;
+    html, body, [class*="css"] {
+        font-family: 'DM Sans', 'Be Vietnam Pro', 'Segoe UI', sans-serif !important;
     }
 
-    /* Nền trang */
     .stApp {
-        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        font-family: 'Be Vietnam Pro', sans-serif;
+        background-color: #080b12;
+        background-image:
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(180,140,60,0.20) 0%, transparent 70%),
+            radial-gradient(ellipse 50% 40% at 85% 100%, rgba(50,90,180,0.13) 0%, transparent 60%);
+        min-height: 100vh;
     }
 
-    /* Ẩn menu mặc định Streamlit */
     #MainMenu, footer, header { visibility: hidden; }
+    .block-container { padding-top: 2rem !important; max-width: 540px !important; }
 
-    /* Card chính chứa form */
-    .main-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 24px;
-        padding: 40px;
-        margin: 20px 0;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+    /* Top bar */
+    .top-bar {
+        width: 100%; height: 3px;
+        background: linear-gradient(90deg, transparent, #b8922a, #e8c96d, #b8922a, transparent);
+        margin-bottom: 40px; border-radius: 2px;
     }
 
-    /* Tiêu đề lớn */
-    .hero-title {
-        font-family: 'Playfair Display', serif;
-        font-size: 2.4rem;
-        font-weight: 700;
-        color: #ffffff;
-        text-align: center;
-        margin-bottom: 6px;
-        text-shadow: 0 2px 20px rgba(100,200,255,0.3);
-    }
-
-    .hero-subtitle {
-        font-family: 'Be Vietnam Pro', sans-serif;
-        font-size: 1rem;
-        color: rgba(255,255,255,0.6);
-        text-align: center;
-        margin-bottom: 32px;
-    }
-
-    /* Label input */
-    .stTextInput label, .stDateInput label {
-        color: rgba(255,255,255,0.85) !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
-    }
-
-    /* Ô nhập liệu - nền sáng, chữ tối để tương phản rõ */
-    .stTextInput input, .stDateInput input {
-        background: rgba(255, 255, 255, 0.92) !important;
-        border: 2px solid rgba(100, 200, 255, 0.4) !important;
-        border-radius: 12px !important;
-        color: #1a1a2e !important;
-        font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif !important;
-        font-size: 1rem !important;
-        font-weight: 500 !important;
-        padding: 10px 16px !important;
-        transition: all 0.3s ease !important;
-        caret-color: #1a1a2e !important;
-    }
-
-    /* Placeholder cũng rõ ràng */
-    .stTextInput input::placeholder, .stDateInput input::placeholder {
-        color: #7a8ca0 !important;
-        font-style: italic !important;
-    }
-
-    .stTextInput input:focus, .stDateInput input:focus {
-        border-color: #64c8ff !important;
-        box-shadow: 0 0 0 3px rgba(100, 200, 255, 0.25) !important;
-        background: #ffffff !important;
-        color: #0d1b2a !important;
-        outline: none !important;
-    }
-
-    /* Nút bấm */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 14px 32px !important;
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-        font-family: 'Be Vietnam Pro', sans-serif !important;
-        width: 100% !important;
-        cursor: pointer !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.4) !important;
-        letter-spacing: 0.5px !important;
-    }
-
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102,126,234,0.6) !important;
-    }
-
-    /* Card kết quả điểm */
-    .result-card {
-        background: linear-gradient(135deg, rgba(100,200,100,0.1) 0%, rgba(50,150,255,0.1) 100%);
-        border: 1px solid rgba(100,200,100,0.3);
-        border-radius: 20px;
-        padding: 32px;
-        margin-top: 24px;
-    }
-
-    .result-name {
-        font-family: 'Playfair Display', serif;
-        font-size: 1.6rem;
-        color: #7ef7a0;
-        text-align: center;
+    /* Emblem */
+    .emblem-icon {
+        font-size: 3rem; display: block; text-align: center;
+        filter: drop-shadow(0 0 20px rgba(184,146,42,0.55));
+        animation: glow-pulse 3s ease-in-out infinite;
         margin-bottom: 4px;
     }
-
-    .result-meta {
-        color: rgba(255,255,255,0.5);
-        text-align: center;
-        font-size: 0.85rem;
-        margin-bottom: 24px;
+    @keyframes glow-pulse {
+        0%, 100% { filter: drop-shadow(0 0 12px rgba(184,146,42,0.4)); }
+        50%       { filter: drop-shadow(0 0 28px rgba(232,201,109,0.9)); }
     }
 
-    /* Metric điểm số */
-    [data-testid="metric-container"] {
-        background: rgba(255,255,255,0.06) !important;
-        border: 1px solid rgba(255,255,255,0.12) !important;
-        border-radius: 16px !important;
-        padding: 16px !important;
-        text-align: center !important;
+    /* Title */
+    .title-main {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 2.5rem; font-weight: 700; color: #e8d5a3;
+        text-align: center; letter-spacing: 0.04em; line-height: 1.15;
+        margin: 0 0 6px 0;
     }
-
-    [data-testid="metric-container"] label {
-        color: rgba(255,255,255,0.6) !important;
-        font-size: 0.8rem !important;
-        font-weight: 500 !important;
-    }
-
-    [data-testid="metric-container"] [data-testid="stMetricValue"] {
-        color: #64c8ff !important;
-        font-size: 2rem !important;
-        font-weight: 700 !important;
-    }
-
-    /* Metric tổng điểm - highlight */
-    .tong-diem [data-testid="stMetricValue"] {
-        color: #ffd700 !important;
-        font-size: 2.4rem !important;
-    }
-
-    /* Thông báo lỗi / cảnh báo */
-    .stAlert {
-        border-radius: 12px !important;
-        font-family: 'Be Vietnam Pro', sans-serif !important;
-    }
-
-    /* Badge trạng thái */
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .badge-success {
-        background: rgba(100,200,100,0.2);
-        color: #7ef7a0;
-        border: 1px solid rgba(100,200,100,0.4);
-    }
-
-    .badge-warning {
-        background: rgba(255,200,50,0.15);
-        color: #ffd700;
-        border: 1px solid rgba(255,200,50,0.3);
+    .title-sub {
+        font-size: 0.78rem; font-weight: 400;
+        color: rgba(232,213,163,0.38);
+        text-align: center; letter-spacing: 0.22em;
+        text-transform: uppercase; margin-bottom: 34px;
     }
 
     /* Divider */
-    .custom-divider {
-        border: none;
-        border-top: 1px solid rgba(255,255,255,0.1);
-        margin: 24px 0;
+    .gold-divider {
+        display: flex; align-items: center; gap: 12px; margin: 24px 0;
+    }
+    .gold-line {
+        flex: 1; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(184,146,42,0.45), transparent);
+    }
+    .gold-diamond {
+        width: 6px; height: 6px; background: #b8922a;
+        transform: rotate(45deg); flex-shrink: 0;
+    }
+
+    /* Card */
+    .lookup-card {
+        background: linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%);
+        border: 1px solid rgba(184,146,42,0.22);
+        border-radius: 20px;
+        padding: 38px 34px 32px;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+        position: relative; overflow: hidden;
+    }
+    .lookup-card::before {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(184,146,42,0.65), rgba(232,201,109,0.85), rgba(184,146,42,0.65), transparent);
+    }
+    .card-hint {
+        color: rgba(232,213,163,0.5); font-size: 0.84rem;
+        text-align: center; margin-bottom: 26px;
+    }
+
+    /* Labels */
+    .stTextInput label {
+        color: rgba(232,213,163,0.72) !important;
+        font-size: 0.76rem !important; font-weight: 500 !important;
+        letter-spacing: 0.16em !important; text-transform: uppercase !important;
+        margin-bottom: 6px !important;
+    }
+
+    /* Input — sáng, chữ tối, tương phản cao */
+    .stTextInput input {
+        background: rgba(255,255,255,0.94) !important;
+        border: 1.5px solid rgba(184,146,42,0.38) !important;
+        border-radius: 10px !important;
+        color: #0f1623 !important;
+        font-family: 'DM Sans', 'Be Vietnam Pro', sans-serif !important;
+        font-size: 1.05rem !important; font-weight: 500 !important;
+        padding: 12px 16px !important;
+        transition: all 0.25s ease !important;
+        caret-color: #b8922a !important;
+    }
+    .stTextInput input::placeholder {
+        color: #8fa0b3 !important;
+        font-style: italic !important; font-weight: 300 !important;
+    }
+    .stTextInput input:focus {
+        background: #ffffff !important;
+        border-color: #c9a43a !important;
+        box-shadow: 0 0 0 3px rgba(184,146,42,0.20), 0 2px 10px rgba(184,146,42,0.10) !important;
+        color: #080b12 !important;
+    }
+
+    /* Button */
+    .stButton > button {
+        background: linear-gradient(135deg, #a07820 0%, #e8c96d 48%, #a07820 100%) !important;
+        background-size: 200% auto !important;
+        color: #080b12 !important; border: none !important;
+        border-radius: 10px !important; padding: 13px 32px !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-size: 0.92rem !important; font-weight: 700 !important;
+        letter-spacing: 0.1em !important; text-transform: uppercase !important;
+        width: 100% !important; margin-top: 10px !important;
+        cursor: pointer !important; transition: all 0.4s ease !important;
+        box-shadow: 0 4px 20px rgba(184,146,42,0.38) !important;
+    }
+    .stButton > button:hover {
+        background-position: right center !important;
+        box-shadow: 0 6px 28px rgba(184,146,42,0.60) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* Alerts */
+    .stAlert { border-radius: 10px !important; }
+
+    /* Result */
+    .result-wrapper {
+        margin-top: 26px;
+        animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    @keyframes slide-up {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .result-header {
+        background: linear-gradient(135deg, rgba(184,146,42,0.09), rgba(50,90,180,0.06));
+        border: 1px solid rgba(184,146,42,0.28);
+        border-radius: 16px 16px 0 0; border-bottom: none;
+        padding: 26px 26px 18px; text-align: center;
+        position: relative;
+    }
+    .result-header::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(184,146,42,0.7), transparent);
+    }
+    .result-name {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 1.9rem; font-weight: 700; color: #e8d5a3; margin-bottom: 5px;
+    }
+    .result-info { color: rgba(232,213,163,0.48); font-size: 0.82rem; }
+
+    .result-body {
+        background: rgba(255,255,255,0.018);
+        border: 1px solid rgba(184,146,42,0.22);
+        border-radius: 0 0 16px 16px; border-top: 1px solid rgba(184,146,42,0.10);
+        padding: 22px 24px 26px;
+    }
+    .score-label {
+        color: rgba(232,213,163,0.4); font-size: 0.70rem;
+        letter-spacing: 0.18em; text-transform: uppercase;
+        text-align: center; margin-bottom: 14px;
+    }
+
+    /* Metrics */
+    [data-testid="metric-container"] {
+        background: rgba(255,255,255,0.04) !important;
+        border: 1px solid rgba(255,255,255,0.07) !important;
+        border-radius: 12px !important; padding: 14px 10px !important;
+        text-align: center !important; transition: all 0.2s !important;
+    }
+    [data-testid="metric-container"]:hover {
+        border-color: rgba(184,146,42,0.32) !important;
+        background: rgba(184,146,42,0.05) !important;
+    }
+    [data-testid="metric-container"] label {
+        color: rgba(232,213,163,0.5) !important;
+        font-size: 0.72rem !important; font-weight: 500 !important;
+        letter-spacing: 0.1em !important; text-transform: uppercase !important;
+    }
+    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+        color: #e8c96d !important; font-size: 1.75rem !important;
+        font-weight: 700 !important;
+        font-family: 'Cormorant Garamond', serif !important;
+    }
+
+    /* Total */
+    .total-box {
+        background: linear-gradient(135deg, rgba(184,146,42,0.10), rgba(184,146,42,0.04));
+        border: 1px solid rgba(184,146,42,0.38); border-radius: 14px;
+        padding: 20px; text-align: center; margin-top: 14px; position: relative;
+    }
+    .total-box::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(232,201,109,0.75), transparent);
+    }
+    .total-label { color: rgba(232,213,163,0.5); font-size: 0.70rem; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 6px; }
+    .total-value {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 3rem; font-weight: 700; color: #e8c96d; line-height: 1;
+        text-shadow: 0 0 28px rgba(232,201,109,0.45);
+    }
+    .total-max { color: rgba(232,213,163,0.28); font-size: 0.78rem; margin-top: 4px; }
+
+    .timestamp-line {
+        color: rgba(255,255,255,0.18); font-size: 0.70rem;
+        text-align: center; margin-top: 14px; letter-spacing: 0.05em;
     }
 
     /* Spinner */
-    .stSpinner > div {
-        border-top-color: #64c8ff !important;
+    .stSpinner > div { border-top-color: #b8922a !important; }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        color: rgba(232,213,163,0.45) !important;
+        font-size: 0.80rem !important; background: transparent !important;
     }
 
-    /* Responsive */
+    /* Footer */
+    .app-footer {
+        text-align: center; padding: 28px 0 14px;
+        color: rgba(255,255,255,0.15); font-size: 0.72rem; letter-spacing: 0.08em;
+    }
+
     @media (max-width: 640px) {
-        .hero-title { font-size: 1.8rem; }
-        .main-card { padding: 24px 20px; }
+        .title-main { font-size: 1.9rem; }
+        .lookup-card { padding: 26px 18px; }
     }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ============================================================
-# CÁC HẰNG SỐ CẤU HÌNH
+# HẰNG SỐ
 # ============================================================
-SHEET_DIEM_THI    = "Diem_Thi"       # Tên tab dữ liệu điểm
-SHEET_ACCESS_LOGS = "Access_Logs"     # Tên tab ghi log
-
-MAX_FAIL_ATTEMPTS = 5     # Số lần thất bại tối đa trong cửa sổ thời gian
-LOCKOUT_MINUTES   = 30    # Khóa sau bao nhiêu phút
-MAX_UNIQUE_SBD    = 2     # Số SBD khác nhau tối đa được tra thành công / IP
+SHEET_DIEM_THI    = "Diem_Thi"
+SHEET_ACCESS_LOGS = "Access_Logs"
+MAX_FAIL_ATTEMPTS = 5
+LOCKOUT_MINUTES   = 30
+MAX_UNIQUE_SBD    = 3
 
 
 # ============================================================
-# HÀM: LẤY ĐỊA CHỈ IP CỦA NGƯỜI DÙNG
+# IP
 # ============================================================
 def get_client_ip() -> str:
-    """
-    Lấy IP public của người dùng thông qua request headers.
-    Ưu tiên X-Forwarded-For (khi chạy sau proxy/Streamlit Cloud),
-    sau đó fallback về các header khác.
-    Trả về "unknown" nếu không lấy được.
-    """
     try:
-        # st.context.headers có từ Streamlit >= 1.31
         headers = st.context.headers
-        # Danh sách header phổ biến chứa IP thật
-        for header_name in ["X-Forwarded-For", "X-Real-Ip", "Forwarded"]:
-            val = headers.get(header_name, "")
+        for h in ["X-Forwarded-For", "X-Real-Ip", "Forwarded"]:
+            val = headers.get(h, "")
             if val:
-                # X-Forwarded-For có thể là chuỗi "ip1, ip2, ip3" → lấy ip đầu tiên
                 ip = val.split(",")[0].strip()
                 if ip:
                     return ip
@@ -273,33 +297,22 @@ def get_client_ip() -> str:
 
 
 # ============================================================
-# HÀM: KẾT NỐI GOOGLE SHEETS
+# GOOGLE SHEETS
 # ============================================================
-@st.cache_resource(ttl=300)  # Cache kết nối 5 phút để tối ưu performance
+@st.cache_resource(ttl=300)
 def get_gspread_client():
-    """
-    Khởi tạo và trả về Google Sheets client đã xác thực.
-    Đọc thông tin service account từ st.secrets (Streamlit Secrets).
-    Raises: Exception nếu không tìm thấy secrets hoặc xác thực thất bại.
-    """
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive.readonly",
     ]
-    # Đọc credentials từ Streamlit Secrets (cấu hình khi deploy)
     creds_info = dict(st.secrets["gcp_service_account"])
     credentials = Credentials.from_service_account_info(creds_info, scopes=scopes)
     return gspread.authorize(credentials)
 
 
 def get_spreadsheet():
-    """
-    Mở và trả về đối tượng Spreadsheet theo URL hoặc tên trong secrets.
-    Trả về None và hiển thị lỗi nếu không kết nối được.
-    """
     try:
         client = get_gspread_client()
-        # Lấy Spreadsheet ID/URL từ secrets
         sheet_id = st.secrets["spreadsheet"]["id"]
         return client.open_by_key(sheet_id)
     except Exception as e:
@@ -307,16 +320,8 @@ def get_spreadsheet():
         return None
 
 
-# ============================================================
-# HÀM: ĐỌC DỮ LIỆU ĐIỂM THI
-# ============================================================
-@st.cache_data(ttl=120)  # Cache dữ liệu điểm 2 phút (tránh đọc Sheets liên tục)
+@st.cache_data(ttl=120)
 def load_score_data() -> pd.DataFrame:
-    """
-    Đọc toàn bộ dữ liệu từ tab 'Diem_Thi' và trả về DataFrame.
-    Cache 2 phút để giảm số lần gọi API.
-    Trả về DataFrame rỗng nếu có lỗi.
-    """
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
         return pd.DataFrame()
@@ -325,25 +330,19 @@ def load_score_data() -> pd.DataFrame:
         records = ws.get_all_records()
         if not records:
             return pd.DataFrame()
-        df = pd.DataFrame(records)
-        return df
+        return pd.DataFrame(records)
     except gspread.exceptions.WorksheetNotFound:
-        st.error(f"❌ Không tìm thấy tab '{SHEET_DIEM_THI}' trong Google Sheets.")
+        st.error(f"❌ Không tìm thấy tab '{SHEET_DIEM_THI}'.")
         return pd.DataFrame()
     except Exception as e:
-        st.error(f"❌ Lỗi đọc dữ liệu điểm thi: {e}")
+        st.error(f"❌ Lỗi đọc dữ liệu: {e}")
         return pd.DataFrame()
 
 
 # ============================================================
-# HÀM: ĐỌC VÀ GHI ACCESS LOGS
+# ACCESS LOGS
 # ============================================================
 def load_access_logs() -> pd.DataFrame:
-    """
-    Đọc toàn bộ log truy cập từ tab 'Access_Logs'.
-    KHÔNG cache vì cần dữ liệu real-time để kiểm tra bảo mật.
-    Trả về DataFrame rỗng nếu chưa có dữ liệu hoặc lỗi.
-    """
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
         return pd.DataFrame()
@@ -351,53 +350,35 @@ def load_access_logs() -> pd.DataFrame:
         ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
         records = ws.get_all_records()
         if not records:
-            # Tab tồn tại nhưng chưa có dữ liệu
             return pd.DataFrame(columns=["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
         df = pd.DataFrame(records)
-        # Chuyển cột thời gian sang kiểu datetime để so sánh
         df["Thời gian"] = pd.to_datetime(df["Thời gian"], errors="coerce")
         return df
     except gspread.exceptions.WorksheetNotFound:
-        # Tab chưa tồn tại → tạo mới
         _create_access_log_sheet(spreadsheet)
         return pd.DataFrame(columns=["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
     except Exception as e:
-        # Lỗi không xác định → trả DataFrame rỗng để app không crash
-        st.warning(f"⚠️ Không đọc được log truy cập: {e}")
         return pd.DataFrame(columns=["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
 
 
 def _create_access_log_sheet(spreadsheet):
-    """
-    Tạo tab 'Access_Logs' với header nếu chưa tồn tại.
-    Được gọi tự động khi phát hiện tab thiếu.
-    """
     try:
         ws = spreadsheet.add_worksheet(title=SHEET_ACCESS_LOGS, rows=10000, cols=4)
         ws.append_row(["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
     except Exception:
-        pass  # Bỏ qua nếu không tạo được (quyền hạn chế)
+        pass
 
 
 def append_access_log(ip: str, sbd: str, status: str):
-    """
-    Ghi một dòng log mới vào tab 'Access_Logs'.
-    
-    Args:
-        ip     : Địa chỉ IP của người dùng
-        sbd    : Số báo danh đã tra cứu
-        status : "Thành công" hoặc "Thất bại" hoặc lý do cụ thể
-    """
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
-        return  # Không ghi được log → không crash app
+        return
     try:
         ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ws.append_row([ip, timestamp, sbd, status])
     except gspread.exceptions.WorksheetNotFound:
         _create_access_log_sheet(spreadsheet)
-        # Thử lại sau khi tạo tab
         try:
             ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -405,48 +386,25 @@ def append_access_log(ip: str, sbd: str, status: str):
         except Exception:
             pass
     except Exception:
-        pass  # Lỗi ghi log không được làm crash app chính
+        pass
 
 
 # ============================================================
-# HÀM: KIỂM TRA BẢO MẬT (CHỐNG DÒ ĐIỂM)
+# BẢO MẬT
 # ============================================================
 def check_security(ip: str, sbd_dang_tra: str) -> dict:
-    """
-    Kiểm tra IP hiện tại có vi phạm các quy tắc bảo mật không.
-    
-    Quy tắc 1 - Chống brute-force:
-        Nếu IP có >= MAX_FAIL_ATTEMPTS lần thất bại trong LOCKOUT_MINUTES phút gần nhất
-        → bị khóa.
-    
-    Quy tắc 2 - Giới hạn xem điểm nhiều người:
-        Nếu IP đã tra thành công >= MAX_UNIQUE_SBD số báo danh KHÁC với sbd_dang_tra
-        → bị chặn.
-    
-    Returns:
-        dict với keys:
-            - "allowed" (bool): True nếu được phép tra cứu
-            - "reason"  (str) : Thông báo lý do nếu bị chặn
-    """
     logs_df = load_access_logs()
-
-    # Nếu không đọc được log → cho phép (tránh chặn oan)
     if logs_df.empty or "IP" not in logs_df.columns:
         return {"allowed": True, "reason": ""}
 
-    # Lọc log của IP này
     ip_logs = logs_df[logs_df["IP"] == ip].copy()
 
-    # ── Quy tắc 1: Chống brute-force ──────────────────────────────────
     cutoff_time = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
     recent_logs = ip_logs[ip_logs["Thời gian"] >= cutoff_time]
-
     if "Trạng thái" in recent_logs.columns:
-        # Đếm số lần thất bại gần đây (bao gồm các dòng chứa từ "Thất bại")
         fail_count = recent_logs[
             recent_logs["Trạng thái"].astype(str).str.contains("Thất bại", na=False)
         ].shape[0]
-
         if fail_count >= MAX_FAIL_ATTEMPTS:
             return {
                 "allowed": False,
@@ -456,22 +414,17 @@ def check_security(ip: str, sbd_dang_tra: str) -> dict:
                 ),
             }
 
-    # ── Quy tắc 2: Giới hạn số SBD tra thành công ────────────────────
     if "Trạng thái" in ip_logs.columns and "SBD_Tra_Cuu" in ip_logs.columns:
         success_logs = ip_logs[
             ip_logs["Trạng thái"].astype(str).str.contains("Thành công", na=False)
         ]
-        # Lấy tập hợp SBD đã tra thành công (loại trừ SBD đang tra hiện tại)
-        unique_sbd_success = set(
-            success_logs["SBD_Tra_Cuu"].astype(str).unique()
-        ) - {sbd_dang_tra}
-
-        if len(unique_sbd_success) >= MAX_UNIQUE_SBD:
+        unique_sbd = set(success_logs["SBD_Tra_Cuu"].astype(str).unique()) - {sbd_dang_tra}
+        if len(unique_sbd) >= MAX_UNIQUE_SBD:
             return {
                 "allowed": False,
                 "reason": (
-                    "🛡️ Thiết bị/Mạng của bạn đã đạt giới hạn tra cứu điểm. "
-                    f"Để bảo mật, mỗi thiết bị chỉ được xem điểm của tối đa {MAX_UNIQUE_SBD} thí sinh."
+                    "🛡️ Thiết bị của bạn đã đạt giới hạn tra cứu. "
+                    f"Mỗi thiết bị chỉ được xem tối đa {MAX_UNIQUE_SBD} thí sinh."
                 ),
             }
 
@@ -479,94 +432,32 @@ def check_security(ip: str, sbd_dang_tra: str) -> dict:
 
 
 # ============================================================
-# HÀM: CHUẨN HÓA CHUỖI (để so sánh không phân biệt hoa/thường, dấu)
+# TRA CỨU
 # ============================================================
-def normalize_text(text: str) -> str:
-    """
-    Chuẩn hóa chuỗi họ tên:
-    1. Xóa khoảng trắng hai đầu và khoảng trắng thừa giữa các từ.
-    2. Chuyển về chữ thường.
-    3. Loại bỏ dấu thanh tiếng Việt để so sánh linh hoạt hơn
-       (tùy chọn - comment dòng NFD nếu muốn giữ dấu).
-    
-    Ví dụ: "  Nguyễn  VĂN  An  " → "nguyen van an"
-    """
-    if not isinstance(text, str):
-        text = str(text)
-    # Xóa khoảng trắng thừa
-    text = " ".join(text.split())
-    # Chuyển về chữ thường
-    text = text.lower()
-    # Chuẩn hóa Unicode (giữ nguyên dấu tiếng Việt nhưng chuẩn hóa dạng NFC)
-    text = unicodedata.normalize("NFC", text)
-    return text
-
-
 def validate_sbd(sbd: str) -> bool:
-    """
-    Kiểm tra số báo danh có đúng định dạng 6 chữ số không.
-    Ví dụ hợp lệ: "012345", "999999"
-    Ví dụ không hợp lệ: "12345", "01234A", ""
-    """
     return bool(re.fullmatch(r"\d{6}", sbd.strip()))
 
 
-# ============================================================
-# HÀM: TRA CỨU ĐIỂM
-# ============================================================
-def lookup_score(ho_ten: str, ngay_sinh: str, sbd: str) -> dict:
-    """
-    Tra cứu điểm thi dựa trên 3 thông tin: họ tên, ngày sinh, số báo danh.
-    
-    Logic:
-    1. Chuẩn hóa ho_ten để so sánh không phân biệt hoa/thường.
-    2. So sánh ngày sinh dưới dạng chuỗi (format YYYY-MM-DD hoặc DD/MM/YYYY).
-    3. So sánh SBD chính xác (exact match).
-    4. Cả 3 phải khớp → trả về thông tin điểm.
-    
-    Returns:
-        dict với keys:
-            - "found" (bool): True nếu tìm thấy
-            - "data"  (dict): Thông tin điểm nếu found=True
-    """
+def lookup_score(ngay_sinh: str, sbd: str) -> dict:
+    """Tra cứu chỉ bằng Ngày sinh + Số báo danh."""
     df = load_score_data()
-
     if df.empty:
         return {"found": False, "data": None}
 
-    # Kiểm tra các cột bắt buộc tồn tại
-    required_cols = ["Họ và Tên", "Ngày sinh", "Số báo danh"]
-    for col in required_cols:
+    for col in ["Ngày sinh", "Số báo danh"]:
         if col not in df.columns:
             st.error(f"❌ Thiếu cột '{col}' trong Google Sheets.")
             return {"found": False, "data": None}
 
-    # Chuẩn hóa cột họ tên trong DataFrame để so sánh
-    df["_ho_ten_norm"] = df["Họ và Tên"].astype(str).apply(normalize_text)
-    ho_ten_norm = normalize_text(ho_ten)
+    df["_sbd"]       = df["Số báo danh"].astype(str).str.strip()
+    df["_ngay_sinh"] = df["Ngày sinh"].astype(str).str.strip()
 
-    # Chuẩn hóa SBD (trim khoảng trắng, đảm bảo là chuỗi)
-    df["_sbd_norm"] = df["Số báo danh"].astype(str).str.strip()
-    sbd_norm = sbd.strip()
-
-    # Chuẩn hóa ngày sinh: thử nhiều format phổ biến
-    df["_ngay_sinh_norm"] = df["Ngày sinh"].astype(str).str.strip()
-    
-    # Chuẩn hóa ngày sinh người dùng nhập
-    ngay_sinh_norm = ngay_sinh.strip()
-
-    # Tìm dòng khớp cả 3 điều kiện
-    mask = (
-        (df["_ho_ten_norm"] == ho_ten_norm) &
-        (df["_sbd_norm"] == sbd_norm) &
-        (df["_ngay_sinh_norm"] == ngay_sinh_norm)
-    )
+    mask = (df["_sbd"] == sbd.strip()) & (df["_ngay_sinh"] == ngay_sinh.strip())
     matched = df[mask]
 
     if matched.empty:
         return {"found": False, "data": None}
 
-    # Lấy dòng đầu tiên khớp (không nên có 2 học sinh giống hệt nhau)
     row = matched.iloc[0]
     return {
         "found": True,
@@ -583,188 +474,134 @@ def lookup_score(ho_ten: str, ngay_sinh: str, sbd: str) -> dict:
 
 
 # ============================================================
-# HÀM: HIỂN THỊ KẾT QUẢ ĐIỂM ĐẸP
+# HIỂN THỊ KẾT QUẢ
 # ============================================================
 def display_score_result(data: dict):
-    """
-    Hiển thị bảng điểm với giao diện đẹp sử dụng st.metric và HTML.
-    
-    Args:
-        data: dict chứa thông tin điểm của học sinh
-    """
-    st.markdown('<div class="result-card">', unsafe_allow_html=True)
-    
-    # Tên học sinh và thông tin cơ bản
-    st.markdown(
-        f'<div class="result-name">🎓 {data["Họ và Tên"]}</div>',
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        f'<div class="result-meta">📅 Ngày sinh: {data["Ngày sinh"]} &nbsp;|&nbsp; '
-        f'🔢 Số báo danh: <strong>{data["Số báo danh"]}</strong></div>',
-        unsafe_allow_html=True
-    )
+    st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
 
-    st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-    st.markdown(
-        '<p style="color:rgba(255,255,255,0.7); text-align:center; '
-        'font-size:0.9rem; margin-bottom:16px;">📊 Kết quả các môn thi</p>',
-        unsafe_allow_html=True
-    )
+    st.markdown(f"""
+    <div class="result-header">
+        <div style="font-size:1.8rem; margin-bottom:10px;">🎓</div>
+        <div class="result-name">{data["Họ và Tên"]}</div>
+        <div class="result-info">
+            📅 {data["Ngày sinh"]} &nbsp;·&nbsp; 🔢 SBD: <strong style="color:#e8c96d">{data["Số báo danh"]}</strong>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Hiển thị điểm từng môn
+    st.markdown('<div class="result-body">', unsafe_allow_html=True)
+    st.markdown('<p class="score-label">Kết quả các môn thi</p>', unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric(label="📐 Toán", value=str(data["Toán"]))
+        st.metric(label="📐 TOÁN", value=str(data["Toán"]))
     with col2:
-        st.metric(label="📖 Ngữ Văn", value=str(data["Ngữ Văn"]))
+        st.metric(label="📖 NGỮ VĂN", value=str(data["Ngữ Văn"]))
     with col3:
-        st.metric(label="🌐 Tiếng Anh", value=str(data["Tiếng Anh"]))
+        st.metric(label="🌐 TIẾNG ANH", value=str(data["Tiếng Anh"]))
 
-    # Tổng điểm nổi bật
-    st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <div style="text-align:center; background: rgba(255,215,0,0.08);
-             border: 1px solid rgba(255,215,0,0.3); border-radius:16px; padding:20px; margin-top:8px;">
-            <div style="color:rgba(255,255,255,0.6); font-size:0.85rem; margin-bottom:6px;">
-                🏆 TỔNG ĐIỂM
-            </div>
-            <div style="color:#ffd700; font-size:3rem; font-weight:700; line-height:1;">
-                {data["Tổng điểm"]}
-            </div>
-            <div style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-top:6px;">
-                / 30.0 điểm
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown(f"""
+    <div class="total-box">
+        <div class="total-label">🏆 Tổng điểm</div>
+        <div class="total-value">{data["Tổng điểm"]}</div>
+        <div class="total-max">/ 30.0 điểm</div>
+    </div>
+    <div class="timestamp-line">✓ Tra cứu thành công · {datetime.now().strftime("%H:%M:%S — %d/%m/%Y")}</div>
+    """, unsafe_allow_html=True)
 
-    st.markdown(
-        '<p style="color:rgba(255,255,255,0.4); text-align:center; '
-        'font-size:0.75rem; margin-top:16px;">✅ Tra cứu thành công lúc '
-        + datetime.now().strftime("%H:%M:%S %d/%m/%Y") + "</p>",
-        unsafe_allow_html=True
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 
 # ============================================================
-# GIAO DIỆN CHÍNH
+# MAIN
 # ============================================================
 def main():
-    """
-    Hàm main: Vẽ toàn bộ giao diện và xử lý logic tra cứu điểm.
-    """
-    # Lấy IP người dùng ngay khi load trang
     client_ip = get_client_ip()
 
-    # ── Header ────────────────────────────────────────────────
-    st.markdown('<div class="main-card">', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="hero-title">📋 Tra Cứu Điểm Thi</div>',
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        '<div class="hero-subtitle">Nhập đầy đủ thông tin để xem kết quả thi của bạn</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown('<div class="top-bar"></div>', unsafe_allow_html=True)
 
-    # ── Hướng dẫn ──────────────────────────────────────────────
-    with st.expander("ℹ️ Hướng dẫn tra cứu", expanded=False):
-        st.markdown("""
-        **Để tra cứu điểm, bạn cần nhập đúng:**
-        - ✏️ **Họ và Tên**: Đúng như đã đăng ký (không phân biệt hoa/thường)
-        - 📅 **Ngày sinh**: Đúng theo định dạng `DD/MM/YYYY` (ví dụ: `15/08/2007`)
-        - 🔢 **Số báo danh**: Đúng 6 chữ số (ví dụ: `012345`)
-        
-        > ⚠️ Hệ thống giới hạn tra cứu để bảo mật thông tin thi sinh.
-        """)
+    st.markdown("""
+    <span class="emblem-icon">🎓</span>
+    <h1 class="title-main">Tra Cứu Điểm Thi</h1>
+    <p class="title-sub">Hệ thống tra cứu kết quả kỳ thi</p>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="gold-divider">
+        <div class="gold-line"></div>
+        <div class="gold-diamond"></div>
+        <div class="gold-line"></div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ── Kiểm tra brute-force sơ bộ trước khi hiện form ──────
-    # (Kiểm tra với SBD rỗng để chỉ check lock-out)
     pre_check = check_security(client_ip, sbd_dang_tra="__pre_check__")
     if not pre_check["allowed"] and "nhập sai quá nhiều" in pre_check["reason"]:
         st.error(pre_check["reason"])
-        st.markdown("</div>", unsafe_allow_html=True)  # Đóng main-card
         return
 
-    # ── Form tra cứu ──────────────────────────────────────────
+    st.markdown('<div class="lookup-card">', unsafe_allow_html=True)
+    st.markdown('<p class="card-hint">Nhập thông tin bên dưới để xem điểm của bạn</p>', unsafe_allow_html=True)
+
     with st.form(key="lookup_form", clear_on_submit=False):
-        ho_ten_input = st.text_input(
-            "👤 Họ và Tên",
-            placeholder="Ví dụ: Nguyễn Văn An",
-            help="Nhập đúng họ tên đã đăng ký dự thi"
-        )
         ngay_sinh_input = st.text_input(
             "📅 Ngày sinh",
-            placeholder="Ví dụ: 15/08/2007",
-            help="Định dạng: ngày/tháng/năm (DD/MM/YYYY)"
+            placeholder="VD: 15/08/2007",
+            help="Định dạng: DD/MM/YYYY"
         )
         sbd_input = st.text_input(
             "🔢 Số báo danh",
-            placeholder="Ví dụ: 012345",
+            placeholder="VD: 012345",
             max_chars=6,
-            help="Đúng 6 chữ số, điền số 0 ở đầu nếu có"
+            help="Đúng 6 chữ số"
         )
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔍  Xem kết quả")
 
-        submitted = st.form_submit_button("🔍 Tra cứu điểm")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)  # Đóng main-card
+    with st.expander("ℹ️ Hướng dẫn tra cứu"):
+        st.markdown("""
+**Bạn cần nhập đúng 2 thông tin:**
+- 📅 **Ngày sinh**: Định dạng `DD/MM/YYYY` — ví dụ `15/08/2007`
+- 🔢 **Số báo danh**: Đúng 6 chữ số — ví dụ `012345`
 
-    # ── Xử lý khi submit form ────────────────────────────────
+> ⚠️ Hệ thống giới hạn số lần tra cứu để bảo mật thông tin thí sinh.
+        """)
+
     if submitted:
-        # 1. Validate đầu vào phía client
         errors = []
-        if not ho_ten_input.strip():
-            errors.append("Vui lòng nhập **Họ và Tên**.")
         if not ngay_sinh_input.strip():
             errors.append("Vui lòng nhập **Ngày sinh**.")
         if not sbd_input.strip():
             errors.append("Vui lòng nhập **Số báo danh**.")
         elif not validate_sbd(sbd_input):
-            errors.append("**Số báo danh** phải là đúng **6 chữ số** (ví dụ: 012345).")
+            errors.append("**Số báo danh** phải đúng **6 chữ số** — ví dụ: `012345`.")
 
         if errors:
             for err in errors:
                 st.warning(f"⚠️ {err}")
             return
 
-        # Chuẩn hóa input
-        ho_ten_clean = ho_ten_input.strip()
-        sbd_clean    = sbd_input.strip()
-        # Chuẩn hóa ngày sinh: chấp nhận cả dd/mm/yyyy và d/m/yyyy
+        sbd_clean       = sbd_input.strip()
         ngay_sinh_clean = ngay_sinh_input.strip()
 
-        # 2. Kiểm tra bảo mật
         security_check = check_security(client_ip, sbd_dang_tra=sbd_clean)
         if not security_check["allowed"]:
             st.error(security_check["reason"])
-            # Ghi log lần bị chặn
-            append_access_log(client_ip, sbd_clean, "Thất bại - Bị chặn bởi hệ thống bảo mật")
+            append_access_log(client_ip, sbd_clean, "Thất bại - Bị chặn bảo mật")
             return
 
-        # 3. Thực hiện tra cứu
-        with st.spinner("🔄 Đang tra cứu..."):
-            result = lookup_score(ho_ten_clean, ngay_sinh_clean, sbd_clean)
+        with st.spinner("Đang tra cứu..."):
+            result = lookup_score(ngay_sinh_clean, sbd_clean)
 
-        # 4. Xử lý kết quả
         if result["found"]:
-            # Tra cứu thành công → ghi log và hiển thị
             append_access_log(client_ip, sbd_clean, "Thành công")
-            st.success("✅ Tìm thấy thông tin thi sinh!")
+            st.success("✅ Tìm thấy kết quả thi!")
             display_score_result(result["data"])
         else:
-            # Không tìm thấy → ghi log thất bại
             append_access_log(client_ip, sbd_clean, "Thất bại - Không tìm thấy")
-            st.error(
-                "❌ Không tìm thấy thông tin thi sinh. "
-                "Vui lòng kiểm tra lại Họ tên, Ngày sinh và Số báo danh."
-            )
-            # Đếm số lần thất bại để cảnh báo sớm
+            st.error("❌ Không tìm thấy thông tin. Vui lòng kiểm tra lại Ngày sinh và Số báo danh.")
+
             logs_df = load_access_logs()
             if not logs_df.empty and "IP" in logs_df.columns:
                 cutoff = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
@@ -775,29 +612,17 @@ def main():
                 ]
                 remaining = MAX_FAIL_ATTEMPTS - len(recent_fails)
                 if 0 < remaining <= 2:
-                    st.warning(
-                        f"⚠️ Bạn còn **{remaining}** lần thử trước khi bị tạm khóa {LOCKOUT_MINUTES} phút."
-                    )
+                    st.warning(f"⚠️ Bạn còn **{remaining}** lần thử trước khi bị tạm khóa {LOCKOUT_MINUTES} phút.")
 
 
-# ── Footer ─────────────────────────────────────────────────────────────────
 def render_footer():
-    """Hiển thị footer thông tin."""
-    st.markdown(
-        """
-        <div style="text-align:center; padding:32px 0 16px; color:rgba(255,255,255,0.25);
-             font-size:0.78rem;">
-            🔒 Hệ thống được bảo vệ &nbsp;|&nbsp; Dữ liệu tra cứu được ghi lại
-            để đảm bảo an toàn thông tin thi sinh
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <div class="app-footer">
+        🔒 Hệ thống được bảo vệ &nbsp;·&nbsp; Mọi truy cập đều được ghi lại
+    </div>
+    """, unsafe_allow_html=True)
 
 
-# ============================================================
-# ENTRY POINT
-# ============================================================
 if __name__ == "__main__" or True:
     main()
     render_footer()
