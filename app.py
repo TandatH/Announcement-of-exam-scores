@@ -447,39 +447,71 @@ def validate_sbd(sbd: str) -> bool:
 
 
 def lookup_score(ngay_sinh: str, sbd: str) -> dict:
-    """Tra cứu chỉ bằng Ngày sinh + Số báo danh."""
     df = load_score_data()
+
     if df.empty:
+        st.error("Data rỗng")
         return {"found": False, "data": None}
 
-    for col in ["Ngày sinh", "Số báo danh"]:
-        if col not in df.columns:
-            st.error(f"❌ Thiếu cột '{col}' trong Google Sheets.")
-            return {"found": False, "data": None}
+    # ========================
+    # DEBUG DATA
+    # ========================
+    st.write("DEBUG DATA HEAD:")
+    st.dataframe(df.head())
 
-    df["_sbd"]       = df["Số báo danh"].astype(str).str.strip()
-    df["_ngay_sinh"] = pd.to_datetime(df["Ngày sinh"], dayfirst=True, errors="coerce").dt.date
-    input_date = normalize_date(ngay_sinh)
+    # ========================
+    # CLEAN SBD
+    # ========================
+    df["_sbd"] = df["Số báo danh"].astype(str).str.strip()
+    sbd_input = str(sbd).strip()
 
-    if input_date is None:
+    # ========================
+    # CLEAN DATE (CỰC KỲ QUAN TRỌNG)
+    # ========================
+    df["_ngay_sinh"] = pd.to_datetime(
+        df["Ngày sinh"],
+        dayfirst=True,
+        errors="coerce"
+    ).dt.strftime("%d/%m/%Y")
+
+    try:
+        input_date = pd.to_datetime(
+            ngay_sinh,
+            dayfirst=True
+        ).strftime("%d/%m/%Y")
+    except:
+        st.error("Ngày sinh nhập sai format")
         return {"found": False, "data": None}
 
-    mask = (df["_sbd"] == sbd.strip()) & (df["_ngay_sinh"] == input_date)
-    matched = df[mask]
+    # ========================
+    # DEBUG SO SÁNH
+    # ========================
+    st.write("INPUT:", sbd_input, input_date)
+    st.write("DATA SAMPLE:", df[["_sbd", "_ngay_sinh"]].head())
+
+    # ========================
+    # MATCH
+    # ========================
+    matched = df[
+        (df["_sbd"] == sbd_input) &
+        (df["_ngay_sinh"] == input_date)
+    ]
 
     if matched.empty:
+        st.error("❌ Không tìm thấy (debug mode)")
         return {"found": False, "data": None}
 
     row = matched.iloc[0]
+
     return {
         "found": True,
         "data": {
-            "Họ và Tên":   row.get("Họ và Tên", ""),
-            "Ngày sinh":   row.get("Ngày sinh", ""),
+            "Họ và Tên": row.get("Họ và Tên", ""),
+            "Ngày sinh": row.get("Ngày sinh", ""),
             "Số báo danh": row.get("Số báo danh", ""),
-            "Công nghệ":        row.get("Công nghệ", "N/A"),
-            "GD ĐP":     row.get("GD ĐP", "N/A"),
-            "Tổng điểm":   row.get("Tổng điểm", "N/A"),
+            "Công nghệ": row.get("Công nghệ", "N/A"),
+            "GD ĐP": row.get("GD ĐP", "N/A"),
+            "Tổng điểm": row.get("Tổng điểm", "N/A"),
         }
     }
 def generate_qr(data):
