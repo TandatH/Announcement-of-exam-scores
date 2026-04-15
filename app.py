@@ -32,188 +32,274 @@ st.set_page_config(
 # ============================================================
 st.markdown("""
 <style>
-    /* Import font chữ đẹp */
-    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-    /* Nền trang */
-    .stApp {
-        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        font-family: 'Be Vietnam Pro', sans-serif;
+    :root {
+        --cream: #f5f0e8;
+        --gold: #c9a84c;
+        --gold-light: #e8c97a;
+        --dark: #1a1410;
+        --dark2: #2d2218;
+        --dark3: #3d2f20;
+        --text-muted: rgba(245,240,232,0.5);
+        --border: rgba(201,168,76,0.25);
+        --border-hover: rgba(201,168,76,0.6);
     }
 
-    /* Ẩn menu mặc định Streamlit */
     #MainMenu, footer, header { visibility: hidden; }
 
-    /* Card chính chứa form */
-    .main-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 24px;
-        padding: 40px;
-        margin: 20px 0;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+    .stApp {
+        background: var(--dark);
+        font-family: 'DM Sans', sans-serif;
+        min-height: 100vh;
     }
 
-    /* Tiêu đề lớn */
+    /* Nền có texture */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background:
+            radial-gradient(ellipse 80% 60% at 20% 0%, rgba(201,168,76,0.08) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 40% at 80% 100%, rgba(201,168,76,0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Card chính */
+    .main-card {
+        background: linear-gradient(160deg, rgba(45,34,24,0.95) 0%, rgba(26,20,16,0.98) 100%);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 48px 44px 40px;
+        margin: 24px 0;
+        box-shadow:
+            0 0 0 1px rgba(201,168,76,0.05),
+            0 40px 80px rgba(0,0,0,0.6),
+            inset 0 1px 0 rgba(201,168,76,0.15);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .main-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+
+    /* Logo / icon trên cùng */
+    .hero-icon {
+        text-align: center;
+        font-size: 2.2rem;
+        margin-bottom: 12px;
+        filter: drop-shadow(0 0 20px rgba(201,168,76,0.4));
+    }
+
+    /* Tiêu đề */
     .hero-title {
-        font-family: 'Playfair Display', serif;
-        font-size: 2.4rem;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 2.6rem;
         font-weight: 700;
-        color: #ffffff;
+        color: var(--cream);
         text-align: center;
         margin-bottom: 6px;
-        text-shadow: 0 2px 20px rgba(100,200,255,0.3);
+        letter-spacing: 0.02em;
+        line-height: 1.1;
+    }
+
+    .hero-title span {
+        color: var(--gold);
     }
 
     .hero-subtitle {
-        font-family: 'Be Vietnam Pro', sans-serif;
-        font-size: 1rem;
-        color: rgba(255,255,255,0.6);
+        color: var(--text-muted);
         text-align: center;
-        margin-bottom: 32px;
+        font-size: 0.9rem;
+        font-weight: 300;
+        letter-spacing: 0.05em;
+        margin-bottom: 36px;
     }
 
-    /* Label input */
-    .stTextInput label, .stDateInput label {
-        color: rgba(255,255,255,0.85) !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
+    /* Đường kẻ trang trí */
+    .gold-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 28px 0;
+    }
+    .gold-divider::before, .gold-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--border));
+    }
+    .gold-divider::after {
+        background: linear-gradient(90deg, var(--border), transparent);
+    }
+    .gold-divider-dot {
+        width: 5px; height: 5px;
+        border-radius: 50%;
+        background: var(--gold);
+        opacity: 0.5;
     }
 
-    /* Ô nhập liệu */
-    .stTextInput input, .stDateInput input {
-        background: rgba(255,255,255,0.08) !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        border-radius: 12px !important;
-        color: #ffffff !important;
-        font-family: 'Be Vietnam Pro', sans-serif !important;
-        padding: 10px 16px !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .stTextInput input:focus, .stDateInput input:focus {
-        border-color: #64c8ff !important;
-        box-shadow: 0 0 0 3px rgba(100,200,255,0.15) !important;
-        background: rgba(100,200,255,0.05) !important;
-    }
-
-    /* Nút bấm */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 14px 32px !important;
-        font-size: 1rem !important;
+    /* Label */
+    .stTextInput label {
+        color: var(--gold-light) !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-size: 0.72rem !important;
         font-weight: 600 !important;
-        font-family: 'Be Vietnam Pro', sans-serif !important;
+        letter-spacing: 0.12em !important;
+        text-transform: uppercase !important;
+        margin-bottom: 6px !important;
+    }
+
+    /* Input */
+    .stTextInput input {
+        background: rgba(255,255,255,0.03) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 2px !important;
+        color: var(--cream) !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-size: 0.95rem !important;
+        padding: 12px 16px !important;
+        transition: all 0.25s ease !important;
+        letter-spacing: 0.01em !important;
+    }
+
+    .stTextInput input::placeholder {
+        color: rgba(245,240,232,0.2) !important;
+        font-style: italic;
+    }
+
+    .stTextInput input:focus {
+        border-color: var(--gold) !important;
+        background: rgba(201,168,76,0.04) !important;
+        box-shadow: 0 0 0 3px rgba(201,168,76,0.08), 0 1px 20px rgba(201,168,76,0.1) !important;
+        outline: none !important;
+    }
+
+    /* Nút */
+    .stButton > button {
+        background: linear-gradient(135deg, #c9a84c 0%, #a8823a 50%, #c9a84c 100%) !important;
+        background-size: 200% !important;
+        color: var(--dark) !important;
+        border: none !important;
+        border-radius: 2px !important;
+        padding: 14px 32px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        font-family: 'DM Sans', sans-serif !important;
+        letter-spacing: 0.15em !important;
+        text-transform: uppercase !important;
         width: 100% !important;
         cursor: pointer !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.4) !important;
-        letter-spacing: 0.5px !important;
+        box-shadow: 0 4px 20px rgba(201,168,76,0.3) !important;
+        margin-top: 8px !important;
     }
 
     .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102,126,234,0.6) !important;
+        box-shadow: 0 6px 30px rgba(201,168,76,0.5) !important;
+        transform: translateY(-1px) !important;
+        background-position: right !important;
     }
 
-    /* Card kết quả điểm */
+    .stButton > button:active {
+        transform: translateY(0) !important;
+    }
+
+    /* Card kết quả */
     .result-card {
-        background: linear-gradient(135deg, rgba(100,200,100,0.1) 0%, rgba(50,150,255,0.1) 100%);
-        border: 1px solid rgba(100,200,100,0.3);
-        border-radius: 20px;
-        padding: 32px;
-        margin-top: 24px;
+        background: linear-gradient(160deg, rgba(45,34,24,0.8), rgba(26,20,16,0.9));
+        border: 1px solid rgba(201,168,76,0.3);
+        border-radius: 4px;
+        padding: 36px;
+        margin-top: 28px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .result-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--gold), transparent);
     }
 
     .result-name {
-        font-family: 'Playfair Display', serif;
-        font-size: 1.6rem;
-        color: #7ef7a0;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--cream);
         text-align: center;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+        letter-spacing: 0.02em;
     }
 
     .result-meta {
-        color: rgba(255,255,255,0.5);
+        color: var(--text-muted);
         text-align: center;
-        font-size: 0.85rem;
-        margin-bottom: 24px;
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        margin-bottom: 28px;
     }
 
-    /* Metric điểm số */
+    /* Metric */
     [data-testid="metric-container"] {
-        background: rgba(255,255,255,0.06) !important;
-        border: 1px solid rgba(255,255,255,0.12) !important;
-        border-radius: 16px !important;
-        padding: 16px !important;
+        background: rgba(201,168,76,0.05) !important;
+        border: 1px solid rgba(201,168,76,0.2) !important;
+        border-radius: 2px !important;
+        padding: 20px 12px !important;
         text-align: center !important;
     }
 
     [data-testid="metric-container"] label {
-        color: rgba(255,255,255,0.6) !important;
-        font-size: 0.8rem !important;
-        font-weight: 500 !important;
+        color: var(--gold-light) !important;
+        font-size: 0.68rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.1em !important;
+        text-transform: uppercase !important;
     }
 
     [data-testid="metric-container"] [data-testid="stMetricValue"] {
-        color: #64c8ff !important;
-        font-size: 2rem !important;
+        color: var(--cream) !important;
+        font-family: 'Cormorant Garamond', serif !important;
+        font-size: 2.4rem !important;
         font-weight: 700 !important;
     }
 
-    /* Metric tổng điểm - highlight */
-    .tong-diem [data-testid="stMetricValue"] {
-        color: #ffd700 !important;
-        font-size: 2.4rem !important;
-    }
-
-    /* Thông báo lỗi / cảnh báo */
+    /* Alert */
     .stAlert {
-        border-radius: 12px !important;
-        font-family: 'Be Vietnam Pro', sans-serif !important;
+        border-radius: 2px !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-size: 0.88rem !important;
     }
 
-    /* Badge trạng thái */
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .badge-success {
-        background: rgba(100,200,100,0.2);
-        color: #7ef7a0;
-        border: 1px solid rgba(100,200,100,0.4);
-    }
-
-    .badge-warning {
-        background: rgba(255,200,50,0.15);
-        color: #ffd700;
-        border: 1px solid rgba(255,200,50,0.3);
+    /* Expander */
+    .streamlit-expanderHeader {
+        color: var(--text-muted) !important;
+        font-size: 0.82rem !important;
     }
 
     /* Divider */
     .custom-divider {
         border: none;
-        border-top: 1px solid rgba(255,255,255,0.1);
+        border-top: 1px solid rgba(201,168,76,0.15);
         margin: 24px 0;
     }
 
     /* Spinner */
     .stSpinner > div {
-        border-top-color: #64c8ff !important;
+        border-top-color: var(--gold) !important;
     }
 
-    /* Responsive */
     @media (max-width: 640px) {
-        .hero-title { font-size: 1.8rem; }
-        .main-card { padding: 24px 20px; }
+        .hero-title { font-size: 2rem; }
+        .main-card { padding: 32px 20px; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -470,10 +556,9 @@ def normalize_text(text: str) -> str:
     Chuẩn hóa chuỗi họ tên:
     1. Xóa khoảng trắng hai đầu và khoảng trắng thừa giữa các từ.
     2. Chuyển về chữ thường.
-    3. Loại bỏ dấu thanh tiếng Việt để so sánh linh hoạt hơn
-       (tùy chọn - comment dòng NFD nếu muốn giữ dấu).
+    3. Chuẩn hóa NFC để đảm bảo encoding đồng nhất (giữ dấu tiếng Việt).
     
-    Ví dụ: "  Nguyễn  VĂN  An  " → "nguyen van an"
+    Ví dụ: "  Huỳnh  TẤN  Đạt  " → "huỳnh tấn đạt"
     """
     if not isinstance(text, str):
         text = str(text)
@@ -481,7 +566,8 @@ def normalize_text(text: str) -> str:
     text = " ".join(text.split())
     # Chuyển về chữ thường
     text = text.lower()
-    # Chuẩn hóa Unicode (giữ nguyên dấu tiếng Việt nhưng chuẩn hóa dạng NFC)
+    # Chuẩn hóa NFC — bắt buộc để tránh lỗi encoding khác nhau giữa
+    # dữ liệu Google Sheets và input người dùng (NFD vs NFC)
     text = unicodedata.normalize("NFC", text)
     return text
 
@@ -580,7 +666,7 @@ def display_score_result(data: dict):
     
     # Tên học sinh và thông tin cơ bản
     st.markdown(
-        f'<div class="result-name">🎓 {data["Họ và Tên"]}</div>',
+        f'<div class="result-name">{data["Họ và Tên"]}</div>',
         unsafe_allow_html=True
     )
     st.markdown(
@@ -609,15 +695,21 @@ def display_score_result(data: dict):
     st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
     st.markdown(
         f"""
-        <div style="text-align:center; background: rgba(255,215,0,0.08);
-             border: 1px solid rgba(255,215,0,0.3); border-radius:16px; padding:20px; margin-top:8px;">
-            <div style="color:rgba(255,255,255,0.6); font-size:0.85rem; margin-bottom:6px;">
-                🏆 TỔNG ĐIỂM
+        <div style="text-align:center; background: rgba(201,168,76,0.06);
+             border: 1px solid rgba(201,168,76,0.25); border-radius:2px; padding:24px; margin-top:12px;
+             position:relative; overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:1px;
+                 background:linear-gradient(90deg,transparent,rgba(201,168,76,0.5),transparent)"></div>
+            <div style="color:rgba(201,168,76,0.7); font-size:0.68rem; letter-spacing:0.15em;
+                 text-transform:uppercase; margin-bottom:8px; font-family:'DM Sans',sans-serif;">
+                Tổng điểm
             </div>
-            <div style="color:#ffd700; font-size:3rem; font-weight:700; line-height:1;">
+            <div style="color:#e8c97a; font-size:3.5rem; font-weight:700; line-height:1;
+                 font-family:'Cormorant Garamond',serif;">
                 {data["Tổng điểm"]}
             </div>
-            <div style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-top:6px;">
+            <div style="color:rgba(245,240,232,0.25); font-size:0.78rem; margin-top:6px;
+                 font-family:'DM Sans',sans-serif; letter-spacing:0.05em;">
                 / 30.0 điểm
             </div>
         </div>
@@ -646,14 +738,16 @@ def main():
 
     # ── Header ────────────────────────────────────────────────
     st.markdown('<div class="main-card">', unsafe_allow_html=True)
+    st.markdown('<div class="hero-icon">🎓</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="hero-title">📋 Tra Cứu Điểm Thi</div>',
+        '<div class="hero-title">Tra Cứu <span>Điểm Thi</span></div>',
         unsafe_allow_html=True
     )
     st.markdown(
-        '<div class="hero-subtitle">Nhập đầy đủ thông tin để xem kết quả thi của bạn</div>',
+        '<div class="hero-subtitle">NHẬP ĐẦY ĐỦ THÔNG TIN ĐỂ XEM KẾT QUẢ</div>',
         unsafe_allow_html=True
     )
+    st.markdown('<div class="gold-divider"><div class="gold-divider-dot"></div><div class="gold-divider-dot"></div><div class="gold-divider-dot"></div></div>', unsafe_allow_html=True)
 
     # ── Hướng dẫn ──────────────────────────────────────────────
     with st.expander("ℹ️ Hướng dẫn tra cứu", expanded=False):
@@ -769,10 +863,9 @@ def render_footer():
     """Hiển thị footer thông tin."""
     st.markdown(
         """
-        <div style="text-align:center; padding:32px 0 16px; color:rgba(255,255,255,0.25);
-             font-size:0.78rem;">
-            🔒 Hệ thống được bảo vệ &nbsp;|&nbsp; Dữ liệu tra cứu được ghi lại
-            để đảm bảo an toàn thông tin thi sinh
+        <div style="text-align:center; padding:32px 0 16px; color:rgba(201,168,76,0.3);
+             font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; font-family:'DM Sans',sans-serif;">
+            🔒 Hệ thống được bảo vệ &nbsp;·&nbsp; Dữ liệu tra cứu được ghi lại
         </div>
         """,
         unsafe_allow_html=True
