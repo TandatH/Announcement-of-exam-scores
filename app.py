@@ -12,7 +12,10 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import re
 import unicodedata
-
+import io
+import qrcode
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 # ============================================================
 # CẤU HÌNH TRANG
 # ============================================================
@@ -278,6 +281,11 @@ MAX_FAIL_ATTEMPTS = 5
 LOCKOUT_MINUTES   = 30
 MAX_UNIQUE_SBD    = 3
 
+def normalize_date(date_str):
+    try:
+        return pd.to_datetime(date_str, dayfirst=True).date()
+    except:
+        return None
 
 # ============================================================
 # IP
@@ -450,9 +458,13 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
             return {"found": False, "data": None}
 
     df["_sbd"]       = df["Số báo danh"].astype(str).str.strip()
-    df["_ngay_sinh"] = df["Ngày sinh"].astype(str).str.strip()
+    df["_ngay_sinh"] = pd.to_datetime(df["Ngày sinh"], dayfirst=True, errors="coerce").dt.date
+    input_date = normalize_date(ngay_sinh)
 
-    mask = (df["_sbd"] == sbd.strip()) & (df["_ngay_sinh"] == ngay_sinh.strip())
+    if input_date is None:
+        return {"found": False, "data": None}
+
+    mask = (df["_sbd"] == sbd.strip()) & (df["_ngay_sinh"] == input_date)
     matched = df[mask]
 
     if matched.empty:
@@ -470,8 +482,30 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
             "Tổng điểm":   row.get("Tổng điểm", "N/A"),
         }
     }
+def generate_qr(data):
+    qr_data = f"SBD:{data['Số báo danh']}|DOB:{data['Ngày sinh']}|TOTAL:{data['Tổng điểm']}"
+    qr = qrcode.make(qr_data)
 
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+def generate_pdf(data):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer)
+    styles = getSampleStyleSheet()
 
+    content = []
+    content.append(Paragraph("BẢNG ĐIỂM THÍ SINH", styles["Title"]))
+    content.append(Spacer(1, 12))
+
+    for k, v in data.items():
+        content.append(Paragraph(f"{k}: {v}", styles["Normal"]))
+        content.append(Spacer(1, 8))
+
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
 # ============================================================
 # HIỂN THỊ KẾT QUẢ
 # ============================================================
@@ -595,6 +629,26 @@ def main():
             append_access_log(client_ip, sbd_clean, "Thành công")
             st.success("✅ Tìm thấy kết quả thi!")
             display_score_result(result["data"])
+            data = result["data"]
+
+            # ========================
+            # QR CODE
+            # ========================
+            st.markdown("### 🔐 Mã xác thực")
+            qr_img = generate_qr(data)
+            st.image(qr_img)
+
+            # ========================
+            # PDF DOWNLOAD
+            # ========================
+            pdf = generate_pdf(data)
+
+            st.download_button(
+                label="📄 Tải bảng điểm PDF",
+                data=pdf,
+                file_name=f"bang_diem_{data['Số báo danh']}.pdf",
+                mime="application/pdf"
+            )
         else:
             append_access_log(client_ip, sbd_clean, "Thất bại - Không tìm thấy")
             st.error("❌ Không tìm thấy thông tin. Vui lòng kiểm tra lại Ngày sinh và Số báo danh.")
@@ -623,3 +677,4 @@ def render_footer():
 if __name__ == "__main__" or True:
     main()
     render_footer()
+    
