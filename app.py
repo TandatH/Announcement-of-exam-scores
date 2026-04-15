@@ -535,34 +535,61 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     return {
         "found": True,
         "data": {
-            "Họ và Tên": str(row.get("Họ và Tên", "Không có tên")).strip(),
+            "Họ và Tên": str(row.get("Họ và Tên", "")).strip(),
             "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
             "Số báo danh": str(row.get("Số báo danh", "")).strip(),
             "Công nghệ": row.get("Công nghệ", "N/A"),
             "GD ĐP": row.get("GD ĐP", "N/A"),
-            # Không cần cột "Tổng điểm" nữa vì ta tính động
+            # Không cần đưa 'Tổng điểm' vào đây nữa
         }
     }
 def generate_qr(data):
-    qr_data = f"SBD:{data['Số báo danh']}|DOB:{data['Ngày sinh']}|TOTAL:{data['Tổng điểm']}"
-    qr = qrcode.make(qr_data)
+    # Tính tổng điểm động từ 2 môn
+    try:
+        diem_cn = float(data.get("Công nghệ", 0))
+        diem_gd = float(data.get("GD ĐP", 0))
+        tong_diem = diem_cn + diem_gd
+    except:
+        tong_diem = 0.0
 
+    qr_data = (
+        f"SBD:{data.get('Số báo danh', '')}|"
+        f"DOB:{data.get('Ngày sinh', '')}|"
+        f"TOTAL:{tong_diem}"
+    )
+
+    qr = qrcode.make(qr_data)
     buf = io.BytesIO()
     qr.save(buf, format="PNG")
     buf.seek(0)
     return buf
 def generate_pdf(data):
+    try:
+        diem_cn = float(data.get("Công nghệ", 0))
+        diem_gd = float(data.get("GD ĐP", 0))
+        tong_diem = diem_cn + diem_gd
+    except:
+        tong_diem = 0.0
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
 
     content = []
     content.append(Paragraph("BẢNG ĐIỂM THÍ SINH", styles["Title"]))
-    content.append(Spacer(1, 12))
+    content.append(Spacer(1, 20))
 
-    for k, v in data.items():
-        content.append(Paragraph(f"{k}: {v}", styles["Normal"]))
-        content.append(Spacer(1, 8))
+    content.append(Paragraph(f"Họ và Tên: {data.get('Họ và Tên', '')}", styles["Normal"]))
+    content.append(Spacer(1, 8))
+    content.append(Paragraph(f"Ngày sinh: {data.get('Ngày sinh', '')}", styles["Normal"]))
+    content.append(Spacer(1, 8))
+    content.append(Paragraph(f"Số báo danh: {data.get('Số báo danh', '')}", styles["Normal"]))
+    content.append(Spacer(1, 12))
+    content.append(Paragraph(f"Công nghệ: {data.get('Công nghệ', 'N/A')}", styles["Normal"]))
+    content.append(Spacer(1, 8))
+    content.append(Paragraph(f"GD ĐP: {data.get('GD ĐP', 'N/A')}", styles["Normal"]))
+    content.append(Spacer(1, 12))
+    content.append(Paragraph(f"Tổng điểm: {tong_diem} / 20.0", styles["Normal"]))
 
     doc.build(content)
     buffer.seek(0)
