@@ -465,9 +465,8 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
             "Họ và Tên":   row.get("Họ và Tên", ""),
             "Ngày sinh":   row.get("Ngày sinh", ""),
             "Số báo danh": row.get("Số báo danh", ""),
-            "Toán":        row.get("Toán", "N/A"),
-            "Ngữ Văn":     row.get("Ngữ Văn", "N/A"),
-            "Tiếng Anh":   row.get("Tiếng Anh", "N/A"),
+            "Công nghệ":        row.get("Công nghệ", "N/A"),
+            "GD ĐP":     row.get("GD ĐP", "N/A"),
             "Tổng điểm":   row.get("Tổng điểm", "N/A"),
         }
     }
@@ -494,12 +493,10 @@ def display_score_result(data: dict):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric(label="📐 TOÁN", value=str(data["Toán"]))
+        st.metric(label="Công nghệ", value=str(data["Công nghệ"]))
     with col2:
-        st.metric(label="📖 NGỮ VĂN", value=str(data["Ngữ Văn"]))
-    with col3:
-        st.metric(label="🌐 TIẾNG ANH", value=str(data["Tiếng Anh"]))
-
+        st.metric(label="📖 GD ĐP", value=str(data["GD ĐP"]))
+    
     st.markdown(f"""
     <div class="total-box">
         <div class="total-label">🏆 Tổng điểm</div>
