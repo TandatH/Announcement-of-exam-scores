@@ -406,24 +406,24 @@ def _create_access_log_sheet(spreadsheet):
 
 
 def append_access_log(ip: str, sbd: str, status: str):
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    timestamp_vn = datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+    
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
         return
     try:
         ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ws.append_row([ip, timestamp, sbd, status])
+        ws.append_row([ip, timestamp_vn, sbd, status])
     except gspread.exceptions.WorksheetNotFound:
         _create_access_log_sheet(spreadsheet)
         try:
             ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ws.append_row([ip, timestamp, sbd, status])
+            ws.append_row([ip, timestamp_vn, sbd, status])
         except Exception:
             pass
     except Exception:
         pass
-
 
 # ============================================================
 # BẢO MẬT
@@ -597,16 +597,23 @@ def generate_pdf(data):
 # ============================================================
 # HIỂN THỊ KẾT QUẢ
 # ============================================================
+# ============================================================
+# HIỂN THỊ KẾT QUẢ - ĐÃ TÁCH RIÊNG CÔNG NGHỆ & GD ĐP
+# ============================================================
 def display_score_result(data: dict):
-    # Tính tổng điểm thực tế từ 2 môn (vì sheet chưa có cột Tổng điểm)
+    # Tính điểm an toàn
     try:
         diem_cn = float(data.get("Công nghệ", 0))
         diem_gd = float(data.get("GD ĐP", 0))
         tong_diem = diem_cn + diem_gd
-        tong_toi_da = 20.0   # Hiện tại chỉ có 2 môn
     except:
+        diem_cn = 0.0
+        diem_gd = 0.0
         tong_diem = 0.0
-        tong_toi_da = 20.0
+
+    # Thời gian theo giờ Việt Nam
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    now_vn = datetime.now(vn_tz).strftime("%H:%M:%S — %d/%m/%Y")
 
     st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
 
@@ -623,32 +630,32 @@ def display_score_result(data: dict):
     st.markdown('<div class="result-body">', unsafe_allow_html=True)
     st.markdown('<p class="score-label">KẾT QUẢ CÁC MÔN THI</p>', unsafe_allow_html=True)
 
-    # Hai cột điểm môn - làm to và nổi bật hơn
+    # === HIỂN THỊ RIÊNG TỪNG MÔN - ĐẸP HƠN ===
     col1, col2 = st.columns(2, gap="large")
+    
     with col1:
         st.metric(
-            label="Công nghệ",
-            value=f"{data.get('Công nghệ', 'N/A')}",
+            label="📘 CÔNG NGHỆ",
+            value=f"{diem_cn:.1f}",
             delta=None
         )
+    
     with col2:
         st.metric(
-            label="GD ĐP",
-            value=f"{data.get('GD ĐP', 'N/A')}",
+            label="📖 GIÁO DỤC ĐỊA PHƯƠNG",
+            value=f"{diem_gd:.1f}",
             delta=None
         )
 
-    # Box tổng điểm - đã chỉnh lại thành /20.0 và làm đẹp hơn
+    # Tổng điểm nổi bật
     st.markdown(f"""
-    <div class="total-box" style="margin-top: 24px;">
+    <div class="total-box">
         <div class="total-label">🏆 TỔNG ĐIỂM</div>
-        <div class="total-value" style="font-size: 3.8rem;">{tong_diem}</div>
-        <div class="total-max" style="font-size: 1.1rem; margin-top: 8px;">
-            / {tong_toi_da} điểm
-        </div>
+        <div class="total-value">{tong_diem:.1f}</div>
+        <div class="total-max">/ 20.0 điểm</div>
     </div>
     <div class="timestamp-line">
-        ✓ Tra cứu thành công · {datetime.now().strftime("%H:%M:%S — %d/%m/%Y")}
+        ✓ Tra cứu thành công · {now_vn}
     </div>
     """, unsafe_allow_html=True)
 
