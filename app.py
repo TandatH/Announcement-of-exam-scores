@@ -6,7 +6,6 @@
 ================================================================================
 """
 
-from files.app import load_access_logs
 import streamlit as st
 import pandas as pd
 import gspread
