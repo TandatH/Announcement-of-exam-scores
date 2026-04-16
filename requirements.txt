@@ -1,11 +1,18 @@
+# Core dependencies
 streamlit>=1.31.0
+pandas>=2.0.0
 gspread>=6.0.0
 google-auth>=2.27.0
-pandas>=2.0.0
 
 # QR Code
 qrcode[pil]>=7.4.2
 Pillow>=10.0.0
 
-# PDF
+# PDF Generation
 reportlab>=4.0.0
+
+# Timezone support (cho giờ Việt Nam)
+pytz>=2024.1
+
+# Optional: Requests dùng để lấy vị trí từ IP
+requests>=2.31.0
