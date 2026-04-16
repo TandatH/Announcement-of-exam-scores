@@ -16,6 +16,7 @@ import io
 import qrcode
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+import time
 # ============================================================
 # CẤU HÌNH TRANG
 # ============================================================
@@ -330,8 +331,20 @@ def get_client_ip() -> str:
     except Exception:
         pass
     return "unknown"
+#Thoi gian
+def check_release_time():
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    now = datetime.now(vn_tz)
 
+    release_time = now.replace(hour=19, minute=0, second=0, microsecond=0)
 
+    # Nếu đã qua 19h thì cho phép
+    if now >= release_time:
+        return True, 0
+
+    # Tính số giây còn lại
+    remaining = int((release_time - now).total_seconds())
+    return False, remaining
 # ============================================================
 # GOOGLE SHEETS
 # ============================================================
@@ -676,7 +689,39 @@ def display_score_result(data: dict):
 # ============================================================
 # MAIN
 # ============================================================
+
 def main():
+  is_open, remaining = check_release_time()
+
+if not is_open:
+    st.markdown("## ⏳ Chưa đến thời gian công bố")
+    
+    # Tạo placeholder để update liên tục
+    countdown_placeholder = st.empty()
+
+    while remaining > 0:
+        mins, secs = divmod(remaining, 60)
+        hours, mins = divmod(mins, 60)
+
+        countdown_placeholder.markdown(f"""
+        <div style="text-align:center; padding:20px; 
+                    background: rgba(184,146,42,0.1);
+                    border:1px solid rgba(184,146,42,0.4);
+                    border-radius:12px;">
+            <h2 style="color:#e8c96d;">⏳ Đếm ngược công bố kết quả</h2>
+            <div style="font-size:2.5rem; font-weight:bold; color:white;">
+                {hours:02d}:{mins:02d}:{secs:02d}
+            </div>
+            <div style="color:rgba(255,255,255,0.6); margin-top:10px;">
+                Thời gian công bố: 19:00 hôm nay
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        time.sleep(1)
+        remaining -= 1
+
+    st.rerun()
     client_ip = get_client_ip()
 
     st.markdown('<div class="top-bar"></div>', unsafe_allow_html=True)
