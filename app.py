@@ -10,12 +10,23 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
+import pytz
 import re
 import unicodedata
 import io
 import qrcode
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+
+# ============================================================
+# TIMEZONE VIỆT NAM
+# ============================================================
+TZ_VN = pytz.timezone("Asia/Ho_Chi_Minh")
+
+def now_vn() -> datetime:
+    """Trả về datetime hiện tại theo giờ Việt Nam (UTC+7)."""
+    return datetime.now(TZ_VN)
+
 # ============================================================
 # CẤU HÌNH TRANG
 # ============================================================
@@ -309,12 +320,6 @@ MAX_FAIL_ATTEMPTS = 5
 LOCKOUT_MINUTES   = 30
 MAX_UNIQUE_SBD    = 3
 
-def normalize_date(date_str):
-    try:
-        return pd.to_datetime(date_str, dayfirst=True).date()
-    except:
-        return None
-
 # ============================================================
 # IP
 # ============================================================
@@ -376,7 +381,7 @@ def load_score_data() -> pd.DataFrame:
 
 
 # ============================================================
-# ACCESS LOGS
+# ACCESS LOGS  (dùng giờ VN)
 # ============================================================
 def load_access_logs() -> pd.DataFrame:
     spreadsheet = get_spreadsheet()
@@ -388,12 +393,18 @@ def load_access_logs() -> pd.DataFrame:
         if not records:
             return pd.DataFrame(columns=["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
         df = pd.DataFrame(records)
+        # Parse timestamp — lưu dưới dạng aware datetime (UTC+7)
         df["Thời gian"] = pd.to_datetime(df["Thời gian"], errors="coerce")
+        # Nếu naive (không có tz) thì gán VN timezone
+        if df["Thời gian"].dt.tz is None:
+            df["Thời gian"] = df["Thời gian"].dt.tz_localize(TZ_VN)
+        else:
+            df["Thời gian"] = df["Thời gian"].dt.tz_convert(TZ_VN)
         return df
     except gspread.exceptions.WorksheetNotFound:
         _create_access_log_sheet(spreadsheet)
         return pd.DataFrame(columns=["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
-    except Exception as e:
+    except Exception:
         return pd.DataFrame(columns=["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái"])
 
 
@@ -406,18 +417,19 @@ def _create_access_log_sheet(spreadsheet):
 
 
 def append_access_log(ip: str, sbd: str, status: str):
+    """Ghi log với timestamp giờ Việt Nam."""
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
         return
+    # Timestamp luôn theo giờ VN
+    timestamp = now_vn().strftime("%Y-%m-%d %H:%M:%S")
     try:
         ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ws.append_row([ip, timestamp, sbd, status])
     except gspread.exceptions.WorksheetNotFound:
         _create_access_log_sheet(spreadsheet)
         try:
             ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ws.append_row([ip, timestamp, sbd, status])
         except Exception:
             pass
@@ -426,7 +438,7 @@ def append_access_log(ip: str, sbd: str, status: str):
 
 
 # ============================================================
-# BẢO MẬT
+# BẢO MẬT  (so sánh theo giờ VN)
 # ============================================================
 def check_security(ip: str, sbd_dang_tra: str) -> dict:
     logs_df = load_access_logs()
@@ -435,8 +447,10 @@ def check_security(ip: str, sbd_dang_tra: str) -> dict:
 
     ip_logs = logs_df[logs_df["IP"] == ip].copy()
 
-    cutoff_time = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+    # Cutoff tính theo giờ VN (aware)
+    cutoff_time = now_vn() - timedelta(minutes=LOCKOUT_MINUTES)
     recent_logs = ip_logs[ip_logs["Thời gian"] >= cutoff_time]
+
     if "Trạng thái" in recent_logs.columns:
         fail_count = recent_logs[
             recent_logs["Trạng thái"].astype(str).str.contains("Thất bại", na=False)
@@ -474,60 +488,60 @@ def validate_sbd(sbd: str) -> bool:
     return bool(re.fullmatch(r"\d{6}", sbd.strip()))
 
 
+def _normalize_dob(date_val) -> str | None:
+    """
+    Chuẩn hoá ngày sinh từ nhiều định dạng → 'DD/MM/YYYY'.
+    Trả về None nếu không parse được.
+    """
+    if pd.isna(date_val) or str(date_val).strip() == "":
+        return None
+    s = str(date_val).strip()
+    # Thử các format phổ biến theo thứ tự ưu tiên
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%y"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%d/%m/%Y")
+        except ValueError:
+            continue
+    # Fallback: để pandas tự đoán (dayfirst=True để ưu tiên DD trước)
+    parsed = pd.to_datetime(s, dayfirst=True, errors="coerce")
+    if pd.notna(parsed):
+        return parsed.strftime("%d/%m/%Y")
+    return None
+
+
 def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     df = load_score_data()
     if df.empty:
         st.error("❌ Không tải được dữ liệu điểm thi từ Google Sheets.")
         return {"found": False, "data": None}
 
-    sbd_input = str(sbd).strip()
+    sbd_input = str(sbd).strip().zfill(6)
 
-    # Clean SBD
-    df["_sbd"] = df["Số báo danh"].astype(str).str.strip().str.zfill(6)  # đảm bảo 6 chữ số
+    # Chuẩn hoá SBD trong dữ liệu
+    df["_sbd"] = df["Số báo danh"].astype(str).str.strip().str.zfill(6)
 
-    # Clean Ngày sinh - cách chắc chắn nhất
-    def normalize_dob(date_val):
-        if pd.isna(date_val) or str(date_val).strip() == "":
-            return None
-        try:
-            # Thử nhiều format phổ biến
-            for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%m/%d/%Y"]:
-                try:
-                    return pd.to_datetime(date_val, format=fmt, errors='coerce').strftime("%d/%m/%Y")
-                except:
-                    continue
-            # Nếu không được thì fallback dayfirst
-            return pd.to_datetime(date_val, dayfirst=True, errors='coerce').strftime("%d/%m/%Y")
-        except:
-            return None
+    # Chuẩn hoá ngày sinh trong dữ liệu
+    df["_ngay_sinh"] = df["Ngày sinh"].apply(_normalize_dob)
 
-    df["_ngay_sinh"] = df["Ngày sinh"].apply(normalize_dob)
-
-    # Normalize input ngày sinh
-    try:
-        input_date = pd.to_datetime(ngay_sinh, dayfirst=True, errors='coerce').strftime("%d/%m/%Y")
-        if pd.isna(input_date):  # nếu input sai format
-            st.error("❌ Ngày sinh nhập không đúng định dạng (DD/MM/YYYY)")
-            return {"found": False, "data": None}
-    except:
-        st.error("❌ Ngày sinh nhập không đúng định dạng.")
+    # Chuẩn hoá ngày sinh người dùng nhập
+    input_date = _normalize_dob(ngay_sinh)
+    if input_date is None:
+        st.error("❌ Ngày sinh không đúng định dạng. Vui lòng nhập theo kiểu DD/MM/YYYY (ví dụ: 15/08/2007).")
         return {"found": False, "data": None}
 
-    # Match (không phân biệt hoa thường, bỏ khoảng trắng thừa)
     matched = df[
         (df["_sbd"] == sbd_input) &
         (df["_ngay_sinh"] == input_date)
     ].copy()
 
     if matched.empty:
-        # Debug tạm thời (chỉ hiện khi không tìm thấy)
-        with st.expander("🔍 Debug thông tin tra cứu (chỉ admin thấy)", expanded=False):
-            st.write("**SBD input:**", sbd_input)
-            st.write("**Ngày sinh input (normalized):**", input_date)
-            st.write("**Danh sách SBD trong dữ liệu:**", df["_sbd"].unique().tolist())
-            st.write("**Danh sách ngày sinh normalized:**", df["_ngay_sinh"].dropna().unique().tolist())
-            st.dataframe(df[["Họ và Tên", "Ngày sinh", "_ngay_sinh", "Số báo danh", "_sbd"]].head(10))
-        
+        # KHÔNG hiển thị debug expander cho user thường
+        # Ghi lỗi vào server log nội bộ để dev theo dõi nếu cần
+        import logging
+        logging.warning(
+            "[LOOKUP_MISS] SBD=%s | DOB_input=%s | DOB_normalized=%s",
+            sbd_input, ngay_sinh, input_date
+        )
         return {"found": False, "data": None}
 
     row = matched.iloc[0]
@@ -535,46 +549,55 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     return {
         "found": True,
         "data": {
-            "Họ và Tên": str(row.get("Họ và Tên", "Không có tên")).strip(),
-            "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
+            "Họ và Tên":   str(row.get("Họ và Tên", "Không có tên")).strip(),
+            "Ngày sinh":   str(row.get("Ngày sinh", "")).strip(),
             "Số báo danh": str(row.get("Số báo danh", "")).strip(),
-            "Công nghệ": row.get("Công nghệ", "N/A"),
-            "GD ĐP": row.get("GD ĐP", "N/A"),
-        }
+            "Công nghệ":   row.get("Công nghệ", "N/A"),
+            "GD ĐP":       row.get("GD ĐP", "N/A"),
+        },
     }
-def generate_qr(data):
-    """Tạo QR Code với tổng điểm được tính động"""
+
+
+# ============================================================
+# QR CODE & PDF
+# ============================================================
+def generate_qr(data: dict) -> io.BytesIO:
+    """Tạo QR Code chứa thông tin tóm tắt kết quả."""
     try:
-        diem_cn = float(data.get("Công nghệ", 0))
-        diem_gd = float(data.get("GD ĐP", 0))
+        diem_cn   = float(data.get("Công nghệ", 0))
+        diem_gd   = float(data.get("GD ĐP", 0))
         tong_diem = diem_cn + diem_gd
     except (ValueError, TypeError):
         tong_diem = 0.0
 
-    qr_data = f"SBD:{data.get('Số báo danh', '')}|DOB:{data.get('Ngày sinh', '')}|TOTAL:{tong_diem}"
-
-    qr = qrcode.make(qr_data)
+    qr_data = (
+        f"SBD:{data.get('Số báo danh', '')}"
+        f"|DOB:{data.get('Ngày sinh', '')}"
+        f"|TOTAL:{tong_diem}"
+    )
+    qr  = qrcode.make(qr_data)
     buf = io.BytesIO()
     qr.save(buf, format="PNG")
     buf.seek(0)
     return buf
-def generate_pdf(data):
-    """Tạo PDF bảng điểm với tổng điểm chính xác"""
+
+
+def generate_pdf(data: dict) -> io.BytesIO:
+    """Tạo PDF bảng điểm với tổng điểm chính xác."""
     try:
-        diem_cn = float(data.get("Công nghệ", 0))
-        diem_gd = float(data.get("GD ĐP", 0))
+        diem_cn   = float(data.get("Công nghệ", 0))
+        diem_gd   = float(data.get("GD ĐP", 0))
         tong_diem = diem_cn + diem_gd
     except (ValueError, TypeError):
         tong_diem = 0.0
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer)
+    doc    = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
 
     content = []
     content.append(Paragraph("BẢNG ĐIỂM THÍ SINH", styles["Title"]))
     content.append(Spacer(1, 20))
-
     content.append(Paragraph(f"Họ và Tên: {data.get('Họ và Tên', '')}", styles["Normal"]))
     content.append(Spacer(1, 8))
     content.append(Paragraph(f"Ngày sinh: {data.get('Ngày sinh', '')}", styles["Normal"]))
@@ -585,26 +608,28 @@ def generate_pdf(data):
     content.append(Spacer(1, 8))
     content.append(Paragraph(f"GD ĐP: {data.get('GD ĐP', 'N/A')}", styles["Normal"]))
     content.append(Spacer(1, 15))
-    
-    # Tổng điểm nổi bật
     content.append(Paragraph(f"<b>TỔNG ĐIỂM: {tong_diem} / 20.0</b>", styles["Heading2"]))
 
     doc.build(content)
     buffer.seek(0)
     return buffer
+
+
 # ============================================================
 # HIỂN THỊ KẾT QUẢ
 # ============================================================
 def display_score_result(data: dict):
-    # Tính tổng điểm thực tế từ 2 môn (vì sheet chưa có cột Tổng điểm)
     try:
-        diem_cn = float(data.get("Công nghệ", 0))
-        diem_gd = float(data.get("GD ĐP", 0))
+        diem_cn   = float(data.get("Công nghệ", 0))
+        diem_gd   = float(data.get("GD ĐP", 0))
         tong_diem = diem_cn + diem_gd
-        tong_toi_da = 20.0   # Hiện tại chỉ có 2 môn
-    except:
-        tong_diem = 0.0
         tong_toi_da = 20.0
+    except Exception:
+        tong_diem   = 0.0
+        tong_toi_da = 20.0
+
+    # Timestamp tra cứu theo giờ VN
+    tra_cuu_luc = now_vn().strftime("%H:%M:%S — %d/%m/%Y")
 
     st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
 
@@ -621,22 +646,12 @@ def display_score_result(data: dict):
     st.markdown('<div class="result-body">', unsafe_allow_html=True)
     st.markdown('<p class="score-label">KẾT QUẢ CÁC MÔN THI</p>', unsafe_allow_html=True)
 
-    # Hai cột điểm môn - làm to và nổi bật hơn
     col1, col2 = st.columns(2, gap="large")
     with col1:
-        st.metric(
-            label="Công nghệ",
-            value=f"{data.get('Công nghệ', 'N/A')}",
-            delta=None
-        )
+        st.metric(label="Công nghệ", value=f"{data.get('Công nghệ', 'N/A')}")
     with col2:
-        st.metric(
-            label="GD ĐP",
-            value=f"{data.get('GD ĐP', 'N/A')}",
-            delta=None
-        )
+        st.metric(label="GD ĐP", value=f"{data.get('GD ĐP', 'N/A')}")
 
-    # Box tổng điểm - đã chỉnh lại thành /20.0 và làm đẹp hơn
     st.markdown(f"""
     <div class="total-box" style="margin-top: 24px;">
         <div class="total-label">🏆 TỔNG ĐIỂM</div>
@@ -646,7 +661,7 @@ def display_score_result(data: dict):
         </div>
     </div>
     <div class="timestamp-line">
-        ✓ Tra cứu thành công · {datetime.now().strftime("%H:%M:%S — %d/%m/%Y")}
+        ✓ Tra cứu thành công · {tra_cuu_luc} (Giờ VN)
     </div>
     """, unsafe_allow_html=True)
 
@@ -741,19 +756,14 @@ def main():
             display_score_result(result["data"])
             data = result["data"]
 
-            # ========================
             # QR CODE
-            # ========================
             st.markdown("### 🔐 Mã xác thực")
             qr_img = generate_qr(data)
             st.image(qr_img, use_column_width=True)
 
-            # ========================
             # PDF DOWNLOAD
-            # ========================
-            pdf = generate_pdf(data)
+            pdf     = generate_pdf(data)
             sbd_safe = data.get("Số báo danh", "unknown").strip()
-
             st.download_button(
                 label="📄 Tải bảng điểm PDF",
                 data=pdf,
@@ -767,7 +777,7 @@ def main():
 
             logs_df = load_access_logs()
             if not logs_df.empty and "IP" in logs_df.columns:
-                cutoff = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+                cutoff = now_vn() - timedelta(minutes=LOCKOUT_MINUTES)
                 recent_fails = logs_df[
                     (logs_df["IP"] == client_ip) &
                     (logs_df["Thời gian"] >= cutoff) &
@@ -789,4 +799,3 @@ def render_footer():
 if __name__ == "__main__" or True:
     main()
     render_footer()
-    
