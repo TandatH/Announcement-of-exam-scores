@@ -6,6 +6,7 @@
 ================================================================================
 """
 
+from files.app import load_access_logs
 import streamlit as st
 import pandas as pd
 import gspread
@@ -274,7 +275,46 @@ def append_access_log(ip: str, sbd: str, status: str):
 # BẢO MẬT & TRA CỨU
 # ============================================================
 def check_security(ip: str, sbd_dang_tra: str) -> dict:
-    return {"allowed": True, "reason": ""}   # Bạn có thể paste lại phần đầy đủ nếu cần
+    logs_df = load_access_logs()
+    if logs_df.empty or "IP" not in logs_df.columns:
+        return {"allowed": True, "reason": ""}
+
+    ip_logs = logs_df[logs_df["IP"] == ip].copy()
+
+    # Kiểm tra số lần sai trong LOCKOUT_MINUTES phút
+    cutoff_time = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+    recent_logs = ip_logs[ip_logs["Thời gian"] >= cutoff_time]
+
+    if "Trạng thái" in recent_logs.columns:
+        fail_count = recent_logs[
+            recent_logs["Trạng thái"].astype(str).str.contains("Thất bại", na=False)
+        ].shape[0]
+        
+        if fail_count >= MAX_FAIL_ATTEMPTS:
+            return {
+                "allowed": False,
+                "reason": (
+                    f"🔒 Bạn đã nhập sai quá nhiều lần ({fail_count} lần). "
+                    f"Vui lòng thử lại sau {LOCKOUT_MINUTES} phút."
+                ),
+            }
+
+    # Kiểm tra giới hạn số thí sinh khác nhau
+    if "Trạng thái" in ip_logs.columns and "SBD_Tra_Cuu" in ip_logs.columns:
+        success_logs = ip_logs[
+            ip_logs["Trạng thái"].astype(str).str.contains("Thành công", na=False)
+        ]
+        unique_sbd = set(success_logs["SBD_Tra_Cuu"].astype(str).unique()) - {sbd_dang_tra}
+        if len(unique_sbd) >= MAX_UNIQUE_SBD:
+            return {
+                "allowed": False,
+                "reason": (
+                    "🛡️ Thiết bị của bạn đã đạt giới hạn tra cứu. "
+                    f"Mỗi thiết bị chỉ được xem tối đa {MAX_UNIQUE_SBD} thí sinh."
+                ),
+            }
+
+    return {"allowed": True, "reason": ""}
 
 def validate_sbd(sbd: str) -> bool:
     return bool(re.fullmatch(r"\d{6}", sbd.strip()))
