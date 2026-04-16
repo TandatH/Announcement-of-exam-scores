@@ -606,11 +606,9 @@ def display_score_result(data: dict):
       if val is None or str(val).strip() == '':
           return None
       try:
-          v = float(val)
-          return v / 100 if v > 10 else v   # ✅ chỉ chia khi >10
+          return float(val) / 100   # ✅ chia lại 100
       except:
           return None
-
     diem_cn = parse_diem(data.get("Công nghệ"))
     diem_gd = parse_diem(data.get("GD ĐP"))
 
