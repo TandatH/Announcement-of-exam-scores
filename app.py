@@ -532,9 +532,9 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
         return {"found": False, "data": None}
 
     row = matched.iloc[0]
-  with st.expander("🔧 Debug điểm (admin)"):
-    st.write("Công nghệ raw:", repr(row.get("Công nghệ")))
-    st.write("GD ĐP raw:", repr(row.get("GD ĐP")))
+    with st.expander("🔧 Debug điểm (admin)"):
+      st.write("Công nghệ raw:", repr(row.get("Công nghệ")))
+      st.write("GD ĐP raw:", repr(row.get("GD ĐP")))
     return {
         "found": True,
         "data": {
