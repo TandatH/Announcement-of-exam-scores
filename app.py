@@ -544,24 +544,29 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
         }
     }
 def generate_qr(data):
-    # Tính tổng điểm động từ 2 môn
-    try:
-        diem_cn = float(data.get("Công nghệ", 0))
-        diem_gd = float(data.get("GD ĐP", 0))
-        tong_diem = diem_cn + diem_gd
-    except:
-        tong_diem = 0.0
+    def parse(val):
+        try:
+            return float(val) / 100
+        except:
+            return 0.0
+
+    diem_cn = parse(data.get("Công nghệ"))
+    diem_gd = parse(data.get("GD ĐP"))
+    tong_diem = diem_cn + diem_gd
 
     qr_data = (
         f"SBD:{data.get('Số báo danh', '')}|"
         f"DOB:{data.get('Ngày sinh', '')}|"
-        f"TOTAL:{tong_diem}"
+        f"CN:{diem_cn:.2f}|"
+        f"GDĐP:"{diem_gd:.2f}|"
+        f"TOTAL:{tong_diem:.2f}"
     )
 
     qr = qrcode.make(qr_data)
     buf = io.BytesIO()
     qr.save(buf, format="PNG")
     buf.seek(0)
+    return buf
     return buf
 def generate_pdf(data):
     try:
