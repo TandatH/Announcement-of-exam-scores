@@ -642,14 +642,14 @@ def display_score_result(data: dict):
     with col1:
         st.metric(
             label="📘 CÔNG NGHỆ",
-            value=f"{diem_cn:.1f}" if diem_cn is not None else "Chưa có",
+            value=f"{diem_cn:.2f}" if diem_cn is not None else "Chưa có",
             delta=None
         )
 
     with col2:
         st.metric(
             label="📖 GIÁO DỤC ĐỊA PHƯƠNG",
-            value=f"{diem_gd:.1f}" if diem_gd is not None else "Chưa có",
+            value=f"{diem_gd:.2f}" if diem_gd is not None else "Chưa có",
             delta=None
         )
 
