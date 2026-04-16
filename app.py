@@ -557,6 +557,8 @@ def generate_qr(data):
     qr_data = (
         f"SBD:{data.get('Số báo danh', '')}|"
         f"DOB:{data.get('Ngày sinh', '')}|"
+        f"Công nghệ:{diem_cn:.2f}|"
+        f"GD ĐP:{diem_gd:.2f}|"
         f"TOTAL:{tong_diem:.2f}"
     )
 
