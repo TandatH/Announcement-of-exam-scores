@@ -691,7 +691,37 @@ def display_score_result(data: dict):
 # ============================================================
 
 def main():
- 
+     is_open, remaining = check_release_time()
+  
+      if not is_open:
+          st.markdown("## ⏳ Chưa đến thời gian công bố")
+          
+          # Tạo placeholder để update liên tục
+          countdown_placeholder = st.empty()
+      
+          while remaining > 0:
+              mins, secs = divmod(remaining, 60)
+              hours, mins = divmod(mins, 60)
+      
+              countdown_placeholder.markdown(f"""
+              <div style="text-align:center; padding:20px; 
+                          background: rgba(184,146,42,0.1);
+                          border:1px solid rgba(184,146,42,0.4);
+                          border-radius:12px;">
+                  <h2 style="color:#e8c96d;">⏳ Đếm ngược công bố kết quả</h2>
+                  <div style="font-size:2.5rem; font-weight:bold; color:white;">
+                      {hours:02d}:{mins:02d}:{secs:02d}
+                  </div>
+                  <div style="color:rgba(255,255,255,0.6); margin-top:10px;">
+                      Thời gian công bố: 19:00 hôm nay
+                  </div>
+              </div>
+              """, unsafe_allow_html=True)
+      
+              time.sleep(1)
+              remaining -= 1
+      
+          st.rerun()
     client_ip = get_client_ip()
 
     st.markdown('<div class="top-bar"></div>', unsafe_allow_html=True)
