@@ -615,7 +615,7 @@ def display_score_result(data: dict):
     # Tổng điểm chỉ tính các môn đã có điểm
     co_diem = [d for d in [diem_cn, diem_gd] if d is not None]
     tong_diem = sum(co_diem) if co_diem else None
-    tong_str = f"{tong_diem:.1f}" if tong_diem is not None else "—"
+    tong_str = f"{tong_diem:.2f}" if tong_diem is not None else "—"
 
     # Thời gian theo giờ Việt Nam
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
