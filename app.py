@@ -2,7 +2,7 @@
 ================================================================================
   ỨNG DỤNG TRA CỨU ĐIỂM THI - app.py
   Tra cứu bằng: Ngày sinh + Số báo danh
-  Đã nâng cấp: Hiển thị từng điểm môn + Fix tổng điểm + Vị trí IP
+  Đã nâng cấp: Hiển thị từng môn + Thời gian theo giờ Việt Nam + Fix PDF
 ================================================================================
 """
 
@@ -15,6 +15,7 @@ import re
 import io
 import qrcode
 import requests
+import pytz
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
@@ -29,7 +30,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# CSS — Giữ nguyên giao diện Luxury Dark Academy (bản gốc của bạn)
+# CSS — Giữ nguyên giao diện Luxury Dark gốc
 # ============================================================
 st.markdown("""
 <style>
@@ -50,30 +51,113 @@ st.markdown("""
     #MainMenu, footer, header { visibility: hidden; }
     .block-container { padding-top: 2rem !important; max-width: 540px !important; }
 
-    /* Top bar, Emblem, Title, Card... (toàn bộ CSS cũ của bạn) */
-    .top-bar { width: 100%; height: 3px; background: linear-gradient(90deg, transparent, #b8922a, #e8c96d, #b8922a, transparent); margin-bottom: 40px; border-radius: 2px; }
+    .top-bar {
+        width: 100%; height: 3px;
+        background: linear-gradient(90deg, transparent, #b8922a, #e8c96d, #b8922a, transparent);
+        margin-bottom: 40px; border-radius: 2px;
+    }
 
-    .emblem-icon { font-size: 3rem; display: block; text-align: center; filter: drop-shadow(0 0 20px rgba(184,146,42,0.55)); animation: glow-pulse 3s ease-in-out infinite; margin-bottom: 4px; }
-    @keyframes glow-pulse { 0%, 100% { filter: drop-shadow(0 0 12px rgba(184,146,42,0.4)); } 50% { filter: drop-shadow(0 0 28px rgba(232,201,109,0.9)); } }
+    .emblem-icon {
+        font-size: 3rem; display: block; text-align: center;
+        filter: drop-shadow(0 0 20px rgba(184,146,42,0.55));
+        animation: glow-pulse 3s ease-in-out infinite;
+        margin-bottom: 4px;
+    }
+    @keyframes glow-pulse {
+        0%, 100% { filter: drop-shadow(0 0 12px rgba(184,146,42,0.4)); }
+        50%       { filter: drop-shadow(0 0 28px rgba(232,201,109,0.9)); }
+    }
 
-    .title-main { font-family: 'Cormorant Garamond', Georgia, serif !important; font-size: 2.5rem; font-weight: 700; color: #e8d5a3; text-align: center; letter-spacing: 0.04em; line-height: 1.15; margin: 0 0 6px 0; }
-    .title-sub { font-size: 0.78rem; font-weight: 400; color: rgba(232,213,163,0.38); text-align: center; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 34px; }
+    .title-main {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 2.5rem; font-weight: 700; color: #e8d5a3;
+        text-align: center; letter-spacing: 0.04em; line-height: 1.15;
+        margin: 0 0 6px 0;
+    }
+    .title-sub {
+        font-size: 0.78rem; font-weight: 400;
+        color: rgba(232,213,163,0.38);
+        text-align: center; letter-spacing: 0.22em;
+        text-transform: uppercase; margin-bottom: 34px;
+    }
 
-    .lookup-card { background: linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%); border: 1px solid rgba(184,146,42,0.22); border-radius: 20px; padding: 38px 34px 32px; box-shadow: 0 40px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05); }
+    .lookup-card {
+        background: linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%);
+        border: 1px solid rgba(184,146,42,0.22);
+        border-radius: 20px;
+        padding: 38px 34px 32px;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+        position: relative; overflow: hidden;
+    }
 
-    .result-wrapper { margin-top: 26px; animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-    @keyframes slide-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    .result-wrapper {
+        margin-top: 26px;
+        animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    @keyframes slide-up {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
 
-    .result-header { background: linear-gradient(135deg, rgba(184,146,42,0.09), rgba(50,90,180,0.06)); border: 1px solid rgba(184,146,42,0.28); border-radius: 16px 16px 0 0; border-bottom: none; padding: 26px 26px 18px; text-align: center; position: relative; }
-    .result-name { font-family: 'Cormorant Garamond', Georgia, serif !important; font-size: 1.9rem; font-weight: 700; color: #e8d5a3; margin-bottom: 5px; }
+    .result-header {
+        background: linear-gradient(135deg, rgba(184,146,42,0.09), rgba(50,90,180,0.06));
+        border: 1px solid rgba(184,146,42,0.28);
+        border-radius: 16px 16px 0 0; border-bottom: none;
+        padding: 26px 26px 18px; text-align: center;
+        position: relative;
+    }
+    .result-name {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 1.9rem; font-weight: 700; color: #e8d5a3; margin-bottom: 5px;
+    }
+    .result-info { color: rgba(232,213,163,0.48); font-size: 0.82rem; }
 
-    .result-body { background: rgba(255,255,255,0.018); border: 1px solid rgba(184,146,42,0.22); border-radius: 0 0 16px 16px; border-top: 1px solid rgba(184,146,42,0.10); padding: 22px 24px 26px; }
+    .result-body {
+        background: rgba(255,255,255,0.018);
+        border: 1px solid rgba(184,146,42,0.22);
+        border-radius: 0 0 16px 16px; border-top: 1px solid rgba(184,146,42,0.10);
+        padding: 22px 24px 26px;
+    }
+    .score-label {
+        color: rgba(232,213,163,0.4); font-size: 0.70rem;
+        letter-spacing: 0.18em; text-transform: uppercase;
+        text-align: center; margin-bottom: 14px;
+    }
 
-    .total-box { background: linear-gradient(135deg, rgba(184,146,42,0.15), rgba(184,146,42,0.06)) !important; border: 2px solid rgba(232,201,109,0.45) !important; box-shadow: 0 0 35px rgba(232,201,109,0.25) !important; border-radius: 14px; padding: 20px; text-align: center; margin-top: 24px; }
-    .total-value { font-size: 4.2rem !important; line-height: 1 !important; text-shadow: 0 0 30px rgba(232,201,109,0.7) !important; }
+    [data-testid="metric-container"] {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(184,146,42,0.35) !important;
+        border-radius: 14px !important;
+        padding: 18px 12px !important;
+        min-height: 110px;
+    }
+    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+        font-size: 2.4rem !important;
+        color: #e8c96d !important;
+    }
 
-    [data-testid="metric-container"] { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(184,146,42,0.35) !important; border-radius: 14px !important; padding: 18px 12px !important; min-height: 110px; }
-    [data-testid="metric-container"] [data-testid="stMetricValue"] { font-size: 2.4rem !important; color: #e8c96d !important; }
+    .total-box {
+        background: linear-gradient(135deg, rgba(184,146,42,0.15), rgba(184,146,42,0.06)) !important;
+        border: 2px solid rgba(232,201,109,0.45) !important;
+        box-shadow: 0 0 35px rgba(232,201,109,0.25) !important;
+        border-radius: 14px;
+        padding: 20px; text-align: center; margin-top: 24px;
+    }
+    .total-value {
+        font-size: 4.2rem !important;
+        line-height: 1 !important;
+        text-shadow: 0 0 30px rgba(232,201,109,0.7) !important;
+    }
+
+    .timestamp-line {
+        color: rgba(255,255,255,0.18); font-size: 0.70rem;
+        text-align: center; margin-top: 14px; letter-spacing: 0.05em;
+    }
+
+    .app-footer {
+        text-align: center; padding: 28px 0 14px;
+        color: rgba(255,255,255,0.15); font-size: 0.72rem; letter-spacing: 0.08em;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,7 +171,7 @@ LOCKOUT_MINUTES   = 30
 MAX_UNIQUE_SBD    = 3
 
 # ============================================================
-# IP & GEOLOCATION (Cải thiện)
+# IP & GEOLOCATION
 # ============================================================
 def get_client_ip() -> str:
     try:
@@ -96,15 +180,16 @@ def get_client_ip() -> str:
             val = headers.get(h, "")
             if val:
                 ip = val.split(",")[0].strip()
-                if ip: return ip
+                if ip:
+                    return ip
     except:
         pass
     return "unknown"
 
 @st.cache_data(ttl=3600)
 def get_ip_location(ip: str) -> dict:
-    if ip in ["unknown", "127.0.0.1", "::1", "localhost"] or ip.startswith(("192.168.", "10.", "172.16.")):
-        return {"country": "Unknown", "city": "Local", "region": "", "isp": "Unknown"}
+    if ip in ["unknown", "127.0.0.1", "::1", "localhost"] or any(ip.startswith(x) for x in ["192.168.", "10.", "172.16."]):
+        return {"country": "Unknown", "city": "Local Network", "region": "", "isp": "Unknown"}
     try:
         response = requests.get(f"https://freeipapi.com/api/json/{ip}", timeout=6)
         if response.status_code == 200:
@@ -120,7 +205,7 @@ def get_ip_location(ip: str) -> dict:
     return {"country": "Unknown", "city": "Unknown", "region": "", "isp": "Unknown"}
 
 # ============================================================
-# GOOGLE SHEETS & ACCESS LOGS (giữ nguyên logic cũ + thêm vị trí)
+# GOOGLE SHEETS
 # ============================================================
 @st.cache_resource(ttl=300)
 def get_gspread_client():
@@ -146,33 +231,50 @@ def load_score_data() -> pd.DataFrame:
     try:
         ws = spreadsheet.worksheet(SHEET_DIEM_THI)
         return pd.DataFrame(ws.get_all_records())
-    except:
+    except Exception as e:
+        st.error(f"❌ Lỗi đọc dữ liệu: {e}")
         return pd.DataFrame()
 
+# ============================================================
+# ACCESS LOGS
+# ============================================================
 def _create_access_log_sheet(spreadsheet):
     try:
         ws = spreadsheet.add_worksheet(title=SHEET_ACCESS_LOGS, rows=10000, cols=10)
         ws.append_row(["IP", "Thời gian", "SBD_Tra_Cuu", "Trạng thái", "Quốc gia", "Thành phố", "Vùng", "ISP", "Latitude", "Longitude"])
-    except: pass
+    except Exception:
+        pass
 
 def append_access_log(ip: str, sbd: str, status: str):
     loc = get_ip_location(ip)
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    timestamp_vn = datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+    
     spreadsheet = get_spreadsheet()
-    if spreadsheet is None: return
+    if spreadsheet is None:
+        return
     try:
         ws = spreadsheet.worksheet(SHEET_ACCESS_LOGS)
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ws.append_row([ip, timestamp, sbd, status, loc.get("country",""), loc.get("city",""), loc.get("region",""), loc.get("isp",""), "", ""])
+        row = [
+            ip, timestamp_vn, sbd, status,
+            loc.get("country", ""), loc.get("city", ""), loc.get("region", ""),
+            loc.get("isp", ""), "", ""
+        ]
+        ws.append_row(row)
     except gspread.exceptions.WorksheetNotFound:
         _create_access_log_sheet(spreadsheet)
-        append_access_log(ip, sbd, status)
-    except: pass
+        try:
+            append_access_log(ip, sbd, status)
+        except:
+            pass
+    except Exception:
+        pass
 
 # ============================================================
-# BẢO MẬT, TRA CỨU, DISPLAY (Giữ gần như nguyên bản)
+# BẢO MẬT & TRA CỨU
 # ============================================================
 def check_security(ip: str, sbd_dang_tra: str) -> dict:
-    return {"allowed": True, "reason": ""}  # Bạn có thể paste lại phần cũ nếu cần
+    return {"allowed": True, "reason": ""}   # Bạn có thể paste lại phần đầy đủ nếu cần
 
 def validate_sbd(sbd: str) -> bool:
     return bool(re.fullmatch(r"\d{6}", sbd.strip()))
@@ -186,14 +288,17 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     df["_sbd"] = df["Số báo danh"].astype(str).str.strip().str.zfill(6)
 
     def normalize_dob(val):
-        if pd.isna(val) or str(val).strip() == "": return None
+        if pd.isna(val) or str(val).strip() == "":
+            return None
         for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"]:
             try:
                 return pd.to_datetime(val, format=fmt, errors='coerce').strftime("%d/%m/%Y")
-            except: continue
+            except:
+                continue
         try:
             return pd.to_datetime(val, dayfirst=True, errors='coerce').strftime("%d/%m/%Y")
-        except: return None
+        except:
+            return None
 
     df["_ngay_sinh"] = df["Ngày sinh"].apply(normalize_dob)
 
@@ -210,7 +315,7 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     return {
         "found": True,
         "data": {
-            "Họ và Tên": str(row.get("Họ và Tên", "")).strip(),
+            "Họ và Tên": str(row.get("Họ và Tên", "Không có tên")).strip(),
             "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
             "Số báo danh": str(row.get("Số báo danh", "")).strip(),
             "Công nghệ": row.get("Công nghệ", 0),
@@ -219,7 +324,7 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     }
 
 # ============================================================
-# QR & PDF (ĐÃ FIX LỖI)
+# QR CODE & PDF (ĐÃ FIX)
 # ============================================================
 def generate_qr(data):
     try:
@@ -228,7 +333,7 @@ def generate_qr(data):
         total = cn + gd
     except:
         total = 0.0
-    qr_data = f"SBD:{data.get('Số báo danh','')}|TOTAL:{total}"
+    qr_data = f"SBD:{data.get('Số báo danh', '')}|TOTAL:{total}"
     qr = qrcode.make(qr_data)
     buf = io.BytesIO()
     qr.save(buf, format="PNG")
@@ -265,7 +370,7 @@ def generate_pdf(data):
     return buffer
 
 # ============================================================
-# HIỂN THỊ KẾT QUẢ (NÂNG CẤP - HIỂN THỊ TỪNG ĐIỂM)
+# HIỂN THỊ KẾT QUẢ (NÂNG CẤP)
 # ============================================================
 def display_score_result(data: dict):
     try:
@@ -274,6 +379,10 @@ def display_score_result(data: dict):
         total = cn + gd
     except:
         cn = gd = total = 0.0
+
+    # Thời gian theo giờ Việt Nam
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    now_vn = datetime.now(vn_tz).strftime("%H:%M:%S — %d/%m/%Y")
 
     st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
     st.markdown(f"""
@@ -302,9 +411,10 @@ def display_score_result(data: dict):
         <div class="total-max">/ 20.0 điểm</div>
     </div>
     <div class="timestamp-line">
-        ✓ Tra cứu thành công · {datetime.now().strftime("%H:%M:%S — %d/%m/%Y")}
+        ✓ Tra cứu thành công · {now_vn}
     </div>
     """, unsafe_allow_html=True)
+
     st.markdown("</div></div>", unsafe_allow_html=True)
 
 # ============================================================
@@ -330,7 +440,7 @@ def main():
 
     if submitted:
         if not ngay_sinh_input.strip() or not sbd_input.strip() or not validate_sbd(sbd_input):
-            st.warning("⚠️ Vui lòng nhập đầy đủ thông tin đúng định dạng")
+            st.warning("⚠️ Vui lòng nhập đầy đủ và đúng định dạng")
             return
 
         sbd_clean = sbd_input.strip()
@@ -345,13 +455,13 @@ def main():
             display_score_result(result["data"])
             data = result["data"]
 
-            # Thông tin vị trí
+            # Thông tin truy cập (Admin)
             loc = get_ip_location(client_ip)
             with st.expander("📍 Thông tin truy cập (Admin only)", expanded=False):
                 st.write(f"**IP:** {client_ip}")
-                st.write(f"**Quốc gia:** {loc['country']}")
-                st.write(f"**Thành phố:** {loc['city']}")
-                st.write(f"**ISP:** {loc['isp']}")
+                st.write(f"**Quốc gia:** {loc.get('country')}")
+                st.write(f"**Thành phố:** {loc.get('city')}")
+                st.write(f"**ISP:** {loc.get('isp')}")
 
             st.markdown("### 🔐 Mã xác thực")
             st.image(generate_qr(data), use_column_width=True)
@@ -366,7 +476,7 @@ def main():
             )
         else:
             append_access_log(client_ip, sbd_clean, "Thất bại - Không tìm thấy")
-            st.error("❌ Không tìm thấy thông tin. Vui lòng kiểm tra lại.")
+            st.error("❌ Không tìm thấy thông tin. Vui lòng kiểm tra lại Ngày sinh và Số báo danh.")
 
 def render_footer():
     st.markdown("""
