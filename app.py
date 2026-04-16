@@ -535,28 +535,23 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     return {
         "found": True,
         "data": {
-            "Họ và Tên": str(row.get("Họ và Tên", "")).strip(),
+            "Họ và Tên": str(row.get("Họ và Tên", "Không có tên")).strip(),
             "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
             "Số báo danh": str(row.get("Số báo danh", "")).strip(),
             "Công nghệ": row.get("Công nghệ", "N/A"),
             "GD ĐP": row.get("GD ĐP", "N/A"),
-            # Không cần đưa 'Tổng điểm' vào đây nữa
         }
     }
 def generate_qr(data):
-    # Tính tổng điểm động từ 2 môn
+    """Tạo QR Code với tổng điểm được tính động"""
     try:
         diem_cn = float(data.get("Công nghệ", 0))
         diem_gd = float(data.get("GD ĐP", 0))
         tong_diem = diem_cn + diem_gd
-    except:
+    except (ValueError, TypeError):
         tong_diem = 0.0
 
-    qr_data = (
-        f"SBD:{data.get('Số báo danh', '')}|"
-        f"DOB:{data.get('Ngày sinh', '')}|"
-        f"TOTAL:{tong_diem}"
-    )
+    qr_data = f"SBD:{data.get('Số báo danh', '')}|DOB:{data.get('Ngày sinh', '')}|TOTAL:{tong_diem}"
 
     qr = qrcode.make(qr_data)
     buf = io.BytesIO()
@@ -564,11 +559,12 @@ def generate_qr(data):
     buf.seek(0)
     return buf
 def generate_pdf(data):
+    """Tạo PDF bảng điểm với tổng điểm chính xác"""
     try:
         diem_cn = float(data.get("Công nghệ", 0))
         diem_gd = float(data.get("GD ĐP", 0))
         tong_diem = diem_cn + diem_gd
-    except:
+    except (ValueError, TypeError):
         tong_diem = 0.0
 
     buffer = io.BytesIO()
@@ -588,8 +584,10 @@ def generate_pdf(data):
     content.append(Paragraph(f"Công nghệ: {data.get('Công nghệ', 'N/A')}", styles["Normal"]))
     content.append(Spacer(1, 8))
     content.append(Paragraph(f"GD ĐP: {data.get('GD ĐP', 'N/A')}", styles["Normal"]))
-    content.append(Spacer(1, 12))
-    content.append(Paragraph(f"Tổng điểm: {tong_diem} / 20.0", styles["Normal"]))
+    content.append(Spacer(1, 15))
+    
+    # Tổng điểm nổi bật
+    content.append(Paragraph(f"<b>TỔNG ĐIỂM: {tong_diem} / 20.0</b>", styles["Heading2"]))
 
     doc.build(content)
     buffer.seek(0)
@@ -748,18 +746,20 @@ def main():
             # ========================
             st.markdown("### 🔐 Mã xác thực")
             qr_img = generate_qr(data)
-            st.image(qr_img)
+            st.image(qr_img, use_column_width=True)
 
             # ========================
             # PDF DOWNLOAD
             # ========================
             pdf = generate_pdf(data)
+            sbd_safe = data.get("Số báo danh", "unknown").strip()
 
             st.download_button(
                 label="📄 Tải bảng điểm PDF",
                 data=pdf,
-                file_name=f"bang_diem_{data['Số báo danh']}.pdf",
-                mime="application/pdf"
+                file_name=f"bang_diem_{sbd_safe}.pdf",
+                mime="application/pdf",
+                help="Tải về bảng điểm dưới dạng PDF"
             )
         else:
             append_access_log(client_ip, sbd_clean, "Thất bại - Không tìm thấy")
