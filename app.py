@@ -603,12 +603,13 @@ def generate_pdf(data):
 def display_score_result(data: dict):
     # Tính điểm an toàn — môn nào trống thì None, không ép về 0
     def parse_diem(val):
-        if val is None or str(val).strip() == '':
-            return None
-        try:
-            return float(val)
-        except:
-            return None
+      if val is None or str(val).strip() == '':
+          return None
+      try:
+          v = float(val)
+          return v / 100 if v > 10 else v   # ✅ chỉ chia khi >10
+      except:
+          return None
 
     diem_cn = parse_diem(data.get("Công nghệ"))
     diem_gd = parse_diem(data.get("GD ĐP"))
