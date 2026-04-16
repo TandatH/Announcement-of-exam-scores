@@ -694,7 +694,7 @@ def main():
      is_open, remaining = check_release_time()
  
 
-    if not is_open:
+     if not is_open:
       st.markdown("## ⏳ Chưa đến thời gian công bố")
       
       # Tạo placeholder để update liên tục
