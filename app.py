@@ -4,10 +4,9 @@
   Tra cứu bằng: Ngày sinh + Số báo danh (không cần nhập tên)
 ================================================================================
 """
-
+import pytz
 import streamlit as st
 import pandas as pd
-import pytz
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
@@ -532,9 +531,7 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
         return {"found": False, "data": None}
 
     row = matched.iloc[0]
-    with st.expander("🔧 Debug điểm (admin)"):
-      st.write("Công nghệ raw:", repr(row.get("Công nghệ")))
-      st.write("GD ĐP raw:", repr(row.get("GD ĐP")))
+
     return {
         "found": True,
         "data": {
@@ -604,15 +601,22 @@ def generate_pdf(data):
 # HIỂN THỊ KẾT QUẢ - ĐÃ TÁCH RIÊNG CÔNG NGHỆ & GD ĐP
 # ============================================================
 def display_score_result(data: dict):
-    # Tính điểm an toàn
-    try:
-        diem_cn = float(data.get("Công nghệ", 0))
-        diem_gd = float(data.get("GD ĐP", 0))
-        tong_diem = diem_cn + diem_gd
-    except:
-        diem_cn = 0.0
-        diem_gd = 0.0
-        tong_diem = 0.0
+    # Tính điểm an toàn — môn nào trống thì None, không ép về 0
+    def parse_diem(val):
+        if val is None or str(val).strip() == '':
+            return None
+        try:
+            return float(val)
+        except:
+            return None
+
+    diem_cn = parse_diem(data.get("Công nghệ"))
+    diem_gd = parse_diem(data.get("GD ĐP"))
+
+    # Tổng điểm chỉ tính các môn đã có điểm
+    co_diem = [d for d in [diem_cn, diem_gd] if d is not None]
+    tong_diem = sum(co_diem) if co_diem else None
+    tong_str = f"{tong_diem:.1f}" if tong_diem is not None else "—"
 
     # Thời gian theo giờ Việt Nam
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
@@ -633,20 +637,20 @@ def display_score_result(data: dict):
     st.markdown('<div class="result-body">', unsafe_allow_html=True)
     st.markdown('<p class="score-label">KẾT QUẢ CÁC MÔN THI</p>', unsafe_allow_html=True)
 
-    # === HIỂN THỊ RIÊNG TỪNG MÔN - ĐẸP HƠN ===
+    # === HIỂN THỊ TỪNG MÔN — môn chưa có điểm hiện "Chưa có" ===
     col1, col2 = st.columns(2, gap="large")
-    
+
     with col1:
         st.metric(
             label="📘 CÔNG NGHỆ",
-            value=f"{diem_cn:.1f}",
+            value=f"{diem_cn:.1f}" if diem_cn is not None else "Chưa có",
             delta=None
         )
-    
+
     with col2:
         st.metric(
             label="📖 GIÁO DỤC ĐỊA PHƯƠNG",
-            value=f"{diem_gd:.1f}",
+            value=f"{diem_gd:.1f}" if diem_gd is not None else "Chưa có",
             delta=None
         )
 
@@ -654,7 +658,7 @@ def display_score_result(data: dict):
     st.markdown(f"""
     <div class="total-box">
         <div class="total-label">🏆 TỔNG ĐIỂM</div>
-        <div class="total-value">{tong_diem:.1f}</div>
+        <div class="total-value">{tong_str}</div>
         <div class="total-max">/ 20.0 điểm</div>
     </div>
     <div class="timestamp-line">
@@ -799,4 +803,3 @@ def render_footer():
 if __name__ == "__main__" or True:
     main()
     render_footer()
-    
