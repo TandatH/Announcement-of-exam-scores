@@ -348,7 +348,7 @@ def check_release_time():
 # ============================================================
 # GOOGLE SHEETS
 # ============================================================
-@st.cache_resource(ttl=120)
+@st.cache_resource(ttl=300)
 def get_gspread_client():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
