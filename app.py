@@ -391,7 +391,7 @@ def get_spreadsheet():
         return None
 
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def load_score_data() -> pd.DataFrame:
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
