@@ -336,13 +336,14 @@ def check_release_time():
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     now = datetime.now(vn_tz)
 
-    release_time = now.replace(hour=19, minute=0, second=0, microsecond=0)
+    # Mốc 00:00 ngày hôm sau
+    tomorrow = now + timedelta(days=1)
+    release_time = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Nếu đã qua 00h thì cho phép
+    # Nếu đã qua 00:00 thì mở
     if now >= release_time:
         return True, 0
 
-    # Tính số giây còn lại
     remaining = int((release_time - now).total_seconds())
     return False, remaining
 # ============================================================
