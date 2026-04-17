@@ -336,7 +336,7 @@ def check_release_time():
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     now = datetime.now(vn_tz)
 
-    release_time = now.replace(hour=00, minute=0, second=0, microsecond=0)
+    release_time = now.replace(hour=19, minute=0, second=0, microsecond=0)
 
     # Nếu đã qua 00h thì cho phép
     if now >= release_time:
