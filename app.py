@@ -716,43 +716,43 @@ def main():
     is_open, remaining = check_release_time()
 
     if not is_open:
-    st.markdown("## ⏳ Hệ thống đang tạm đóng")
-
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=1000, key="countdown")
-
-    mins, secs = divmod(remaining, 60)
-    hours, mins = divmod(mins, 60)
-
-    st.markdown(f"""
-    <div style="text-align:center; padding:24px; 
-                background: rgba(184,146,42,0.1);
-                border:1px solid rgba(184,146,42,0.4);
-                border-radius:14px;">
-
-        <h2 style="color:#e8c96d;">⏳ Đếm ngược mở hệ thống</h2>
-
-        <div style="font-size:2.8rem; font-weight:bold; color:white; margin:10px 0;">
-            {hours:02d}:{mins:02d}:{secs:02d}
+        st.markdown("## ⏳ Hệ thống đang tạm đóng")
+    
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=1000, key="countdown")
+    
+        mins, secs = divmod(remaining, 60)
+        hours, mins = divmod(mins, 60)
+    
+        st.markdown(f"""
+        <div style="text-align:center; padding:24px; 
+                    background: rgba(184,146,42,0.1);
+                    border:1px solid rgba(184,146,42,0.4);
+                    border-radius:14px;">
+    
+            <h2 style="color:#e8c96d;">⏳ Đếm ngược mở hệ thống</h2>
+    
+            <div style="font-size:2.8rem; font-weight:bold; color:white; margin:10px 0;">
+                {hours:02d}:{mins:02d}:{secs:02d}
+            </div>
+    
+            <div style="color:rgba(255,255,255,0.6); margin-top:8px;">
+                ⏰ Thời gian mở tiếp theo: <b>07:00 hoặc 12:00</b>
+            </div>
+    
+            <div style="margin-top:18px; padding:12px;
+                        background: rgba(50,90,180,0.15);
+                        border-radius:10px;
+                        color:#dbe6ff;
+                        font-size:0.95rem;">
+                📢 <b>Thông báo:</b><br>
+                Ngày <b>20/04/2026</b> sẽ công bố <b>điểm cả năm môn Công nghệ</b>.
+            </div>
+    
         </div>
-
-        <div style="color:rgba(255,255,255,0.6); margin-top:8px;">
-            ⏰ Thời gian mở tiếp theo: <b>07:00 hoặc 12:00</b>
-        </div>
-
-        <div style="margin-top:18px; padding:12px;
-                    background: rgba(50,90,180,0.15);
-                    border-radius:10px;
-                    color:#dbe6ff;
-                    font-size:0.95rem;">
-            📢 <b>Thông báo:</b><br>
-            Ngày <b>20/04/2026</b> sẽ công bố <b>điểm cả năm môn Công nghệ</b>.
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-    return
+        """, unsafe_allow_html=True)
+    
+        return
     client_ip = get_client_ip()
 
     st.markdown('<div class="top-bar"></div>', unsafe_allow_html=True)
