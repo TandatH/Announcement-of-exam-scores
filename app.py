@@ -17,7 +17,6 @@ import qrcode
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import time
-
 # ============================================================
 # CẤU HÌNH TRANG
 # ============================================================
@@ -337,36 +336,15 @@ def check_release_time():
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     now = datetime.now(vn_tz)
 
-    today_7h = now.replace(hour=7, minute=0, second=0, microsecond=0)
-    today_12h = now.replace(hour=12, minute=0, second=0, microsecond=0)
-    today_24h = now.replace(hour=23, minute=59, second=59, microsecond=0)
+    release_time = now.replace(hour=19, minute=0, second=0, microsecond=0)
 
-    tomorrow = now + timedelta(days=1)
-    tomorrow_7h = tomorrow.replace(hour=7, minute=0, second=0, microsecond=0)
+    # Nếu đã qua 19h thì cho phép
+    if now >= release_time:
+        return True, 0
 
-    # =========================
-    # CASE 1: trước 7h sáng hôm nay
-    # =========================
-    if now < today_7h:
-        # ĐANG trong lượt mở đầu tiên (từ hôm qua kéo qua)
-        return True, int((today_7h - now).total_seconds())
-
-    # =========================
-    # CASE 2: từ 7h → 12h (đóng)
-    # =========================
-    if today_7h <= now < today_12h:
-        return False, int((today_12h - now).total_seconds())
-
-    # =========================
-    # CASE 3: từ 12h → 24h (mở)
-    # =========================
-    if today_12h <= now <= today_24h:
-        return True, int((today_24h - now).total_seconds())
-
-    # =========================
-    # CASE 4: sau 24h (qua ngày mới)
-    # =========================
-    return False, int((tomorrow_7h - now).total_seconds())
+    # Tính số giây còn lại
+    remaining = int((release_time - now).total_seconds())
+    return False, remaining
 # ============================================================
 # GOOGLE SHEETS
 # ============================================================
@@ -391,56 +369,20 @@ def get_spreadsheet():
         return None
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=120)
 def load_score_data() -> pd.DataFrame:
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
         return pd.DataFrame()
-
     try:
         ws = spreadsheet.worksheet(SHEET_DIEM_THI)
-
-        # Lấy toàn bộ dữ liệu dạng thô
-        values = ws.get_all_values()
-
-        if not values or len(values) < 2:
-            st.error("❌ Sheet không có dữ liệu.")
+        records = ws.get_all_records()
+        if not records:
             return pd.DataFrame()
-
-        headers = values[0]
-        data = values[1:]
-
-        # 🔥 FIX: xử lý header lỗi (trống / trùng)
-        clean_headers = []
-        seen = set()
-
-        for i, h in enumerate(headers):
-            h = h.strip()
-
-            # Nếu header trống → đặt tên tạm
-            if h == "":
-                h = f"col_{i}"
-
-            # Nếu bị trùng → thêm hậu tố
-            if h in seen:
-                count = 1
-                new_h = f"{h}_{count}"
-                while new_h in seen:
-                    count += 1
-                    new_h = f"{h}_{count}"
-                h = new_h
-
-            seen.add(h)
-            clean_headers.append(h)
-
-        df = pd.DataFrame(data, columns=clean_headers)
-
-        return df
-
+        return pd.DataFrame(records)
     except gspread.exceptions.WorksheetNotFound:
         st.error(f"❌ Không tìm thấy tab '{SHEET_DIEM_THI}'.")
         return pd.DataFrame()
-
     except Exception as e:
         st.error(f"❌ Lỗi đọc dữ liệu: {e}")
         return pd.DataFrame()
@@ -752,43 +694,34 @@ def main():
     is_open, remaining = check_release_time()
 
     if not is_open:
-        st.markdown("## ⏳ Hệ thống đang tạm đóng")
-    
-        from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=1000, key="countdown")
-    
-        mins, secs = divmod(remaining, 60)
-        hours, mins = divmod(mins, 60)
-    
-        st.markdown(f"""
-        <div style="text-align:center; padding:24px; 
-                    background: rgba(184,146,42,0.1);
-                    border:1px solid rgba(184,146,42,0.4);
-                    border-radius:14px;">
-    
-            <h2 style="color:#e8c96d;">⏳ Đếm ngược mở hệ thống</h2>
-    
-            <div style="font-size:2.8rem; font-weight:bold; color:white; margin:10px 0;">
-                {hours:02d}:{mins:02d}:{secs:02d}
+        st.markdown("## ⏳ Chưa đến thời gian công bố")
+        
+        # Tạo placeholder để update liên tục
+        countdown_placeholder = st.empty()
+
+        while remaining > 0:
+            mins, secs = divmod(remaining, 60)
+            hours, mins = divmod(mins, 60)
+
+            countdown_placeholder.markdown(f"""
+            <div style="text-align:center; padding:20px; 
+                        background: rgba(184,146,42,0.1);
+                        border:1px solid rgba(184,146,42,0.4);
+                        border-radius:12px;">
+                <h2 style="color:#e8c96d;">⏳ Đếm ngược công bố kết quả</h2>
+                <div style="font-size:2.5rem; font-weight:bold; color:white;">
+                    {hours:02d}:{mins:02d}:{secs:02d}
+                </div>
+                <div style="color:rgba(255,255,255,0.6); margin-top:10px;">
+                    Thời gian công bố: 19:00 hôm nay
+                </div>
             </div>
-    
-            <div style="color:rgba(255,255,255,0.6); margin-top:8px;">
-                ⏰ Thời gian mở tiếp theo: <b>07:00 hoặc 12:00</b>
-            </div>
-    
-            <div style="margin-top:18px; padding:12px;
-                        background: rgba(50,90,180,0.15);
-                        border-radius:10px;
-                        color:#dbe6ff;
-                        font-size:0.95rem;">
-                📢 <b>Thông báo:</b><br>
-                Ngày <b>20/04/2026</b> sẽ công bố <b>điểm cả năm môn Công nghệ</b>.
-            </div>
-    
-        </div>
-        """, unsafe_allow_html=True)
-    
-        return
+            """, unsafe_allow_html=True)
+
+            time.sleep(1)
+            remaining -= 1
+
+        st.rerun()
     client_ip = get_client_ip()
 
     st.markdown('<div class="top-bar"></div>', unsafe_allow_html=True)
