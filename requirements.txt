@@ -16,4 +16,4 @@ pytz>=2024.1
 
 # Optional: Requests dùng để lấy vị trí từ IP
 requests>=2.31.0
-st_autorefresh
+streamlit-autorefresh==0.0.1
