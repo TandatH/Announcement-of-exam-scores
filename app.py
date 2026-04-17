@@ -337,16 +337,36 @@ def check_release_time():
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     now = datetime.now(vn_tz)
 
-    # Mốc cố định: 00:00 NGÀY HÔM NAY
-    release_time = now.replace(hour=0, minute=10, second=0, microsecond=0)
+    today_7h = now.replace(hour=7, minute=0, second=0, microsecond=0)
+    today_12h = now.replace(hour=12, minute=0, second=0, microsecond=0)
+    today_24h = now.replace(hour=23, minute=59, second=59, microsecond=0)
 
-    # Nếu đã qua 00h rồi → mở
-    if now >= release_time:
-        return True, 0
+    tomorrow = now + timedelta(days=1)
+    tomorrow_7h = tomorrow.replace(hour=7, minute=0, second=0, microsecond=0)
 
-    # Nếu chưa tới 00h → tính ngược
-    remaining = int((release_time - now).total_seconds())
-    return False, remaining
+    # =========================
+    # CASE 1: trước 7h sáng hôm nay
+    # =========================
+    if now < today_7h:
+        # ĐANG trong lượt mở đầu tiên (từ hôm qua kéo qua)
+        return True, int((today_7h - now).total_seconds())
+
+    # =========================
+    # CASE 2: từ 7h → 12h (đóng)
+    # =========================
+    if today_7h <= now < today_12h:
+        return False, int((today_12h - now).total_seconds())
+
+    # =========================
+    # CASE 3: từ 12h → 24h (mở)
+    # =========================
+    if today_12h <= now <= today_24h:
+        return True, int((today_24h - now).total_seconds())
+
+    # =========================
+    # CASE 4: sau 24h (qua ngày mới)
+    # =========================
+    return False, int((tomorrow_7h - now).total_seconds())
 # ============================================================
 # GOOGLE SHEETS
 # ============================================================
