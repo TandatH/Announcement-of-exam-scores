@@ -17,6 +17,7 @@ import qrcode
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import time
+from streamlit_autorefresh import st_autorefresh
 # ============================================================
 # CẤU HÌNH TRANG
 # ============================================================
@@ -336,14 +337,14 @@ def check_release_time():
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     now = datetime.now(vn_tz)
 
-    # Mốc 00:00 ngày hôm sau
-    tomorrow = now + timedelta(days=1)
-    release_time = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Mốc cố định: 00:00 NGÀY HÔM NAY
+    release_time = now.replace(hour=0, minute=10, second=0, microsecond=0)
 
-    # Nếu đã qua 00:00 thì mở
+    # Nếu đã qua 00h rồi → mở
     if now >= release_time:
         return True, 0
 
+    # Nếu chưa tới 00h → tính ngược
     remaining = int((release_time - now).total_seconds())
     return False, remaining
 # ============================================================
@@ -714,7 +715,7 @@ def main():
                     {hours:02d}:{mins:02d}:{secs:02d}
                 </div>
                 <div style="color:rgba(255,255,255,0.6); margin-top:10px;">
-                    Thời gian công bố: 00:00 18/04/2016
+                    Thời gian công bố: 00:10 18/04/2026
                 </div>
             </div>
             """, unsafe_allow_html=True)
