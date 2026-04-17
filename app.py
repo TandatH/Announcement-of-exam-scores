@@ -17,7 +17,7 @@ import qrcode
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import time
-from streamlit_autorefresh import st_autorefresh
+
 # ============================================================
 # CẤU HÌNH TRANG
 # ============================================================
