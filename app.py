@@ -336,9 +336,9 @@ def check_release_time():
     vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     now = datetime.now(vn_tz)
 
-    release_time = now.replace(hour=19, minute=0, second=0, microsecond=0)
+    release_time = now.replace(hour=00, minute=0, second=0, microsecond=0)
 
-    # Nếu đã qua 19h thì cho phép
+    # Nếu đã qua 00h thì cho phép
     if now >= release_time:
         return True, 0
 
@@ -348,7 +348,7 @@ def check_release_time():
 # ============================================================
 # GOOGLE SHEETS
 # ============================================================
-@st.cache_resource(ttl=300)
+@st.cache_resource(ttl=120)
 def get_gspread_client():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -713,7 +713,7 @@ def main():
                     {hours:02d}:{mins:02d}:{secs:02d}
                 </div>
                 <div style="color:rgba(255,255,255,0.6); margin-top:10px;">
-                    Thời gian công bố: 19:00 hôm nay
+                    Thời gian công bố: 00:00 18/04/2016
                 </div>
             </div>
             """, unsafe_allow_html=True)
