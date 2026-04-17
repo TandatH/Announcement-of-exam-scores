@@ -396,15 +396,51 @@ def load_score_data() -> pd.DataFrame:
     spreadsheet = get_spreadsheet()
     if spreadsheet is None:
         return pd.DataFrame()
+
     try:
         ws = spreadsheet.worksheet(SHEET_DIEM_THI)
-        records = ws.get_all_records()
-        if not records:
+
+        # Lấy toàn bộ dữ liệu dạng thô
+        values = ws.get_all_values()
+
+        if not values or len(values) < 2:
+            st.error("❌ Sheet không có dữ liệu.")
             return pd.DataFrame()
-        return pd.DataFrame(records)
+
+        headers = values[0]
+        data = values[1:]
+
+        # 🔥 FIX: xử lý header lỗi (trống / trùng)
+        clean_headers = []
+        seen = set()
+
+        for i, h in enumerate(headers):
+            h = h.strip()
+
+            # Nếu header trống → đặt tên tạm
+            if h == "":
+                h = f"col_{i}"
+
+            # Nếu bị trùng → thêm hậu tố
+            if h in seen:
+                count = 1
+                new_h = f"{h}_{count}"
+                while new_h in seen:
+                    count += 1
+                    new_h = f"{h}_{count}"
+                h = new_h
+
+            seen.add(h)
+            clean_headers.append(h)
+
+        df = pd.DataFrame(data, columns=clean_headers)
+
+        return df
+
     except gspread.exceptions.WorksheetNotFound:
         st.error(f"❌ Không tìm thấy tab '{SHEET_DIEM_THI}'.")
         return pd.DataFrame()
+
     except Exception as e:
         st.error(f"❌ Lỗi đọc dữ liệu: {e}")
         return pd.DataFrame()
