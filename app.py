@@ -734,7 +734,7 @@ def main():
                     {hours:02d}:{mins:02d}:{secs:02d}
                 </div>
                 <div style="color:rgba(255,255,255,0.6); margin-top:10px;">
-                    Thời gian công bố: 19:00 hôm nay
+                    Thời gian công bố: 12:00PM đến 00:00AM và ngày 20/4/2026 công bố điểm cả năm công nghệ!
                 </div>
             </div>
             """, unsafe_allow_html=True)
