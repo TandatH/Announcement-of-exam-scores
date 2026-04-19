@@ -538,20 +538,57 @@ def register_vietnamese_font():
 
     return "Helvetica"
 
-def register_vietnamese_font():
-    possible_fonts = [
-        "DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-        "C:/Windows/Fonts/arial.ttf",
+def generate_pdf(data):
+    def parse_score(val):
+        if val is None or str(val).strip() == "":
+            return 0.0
+        try:
+            return float(val)
+        except Exception:
+            return 0.0
+
+    diem_hk2 = parse_score(data.get("Điểm tổng kết HK2"))
+    diem_tbm_cn = parse_score(data.get("Điểm TBM Công nghệ"))
+    tong_diem = diem_hk2 + diem_tbm_cn
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+
+    font_name = register_vietnamese_font()
+
+    styles["Title"].fontName = font_name
+    styles["Title"].fontSize = 22
+
+    styles["Normal"].fontName = font_name
+    styles["Normal"].fontSize = 15
+    styles["Normal"].leading = 22
+
+    content = [
+        Paragraph("BẢNG KẾT QUẢ HỌC TẬP", styles["Title"]),
+        Spacer(1, 28),
+
+        Paragraph(f"Họ và Tên: {data.get('Họ và Tên', '')}", styles["Normal"]),
+        Spacer(1, 12),
+
+        Paragraph(f"Ngày sinh: {data.get('Ngày sinh', '')}", styles["Normal"]),
+        Spacer(1, 12),
+
+        Paragraph(f"Số báo danh: {str(data.get('Số báo danh', '')).zfill(6)}", styles["Normal"]),
+        Spacer(1, 20),
+
+        Paragraph(f"Điểm tổng kết HK2: {diem_hk2:.2f}", styles["Normal"]),
+        Spacer(1, 12),
+
+        Paragraph(f"Điểm TBM Công nghệ: {diem_tbm_cn:.2f}", styles["Normal"]),
+        Spacer(1, 12),
+
+        Paragraph(f"Tổng điểm hiển thị: {tong_diem:.2f} / 20.0", styles["Normal"]),
     ]
 
-    for font_path in possible_fonts:
-        if os.path.exists(font_path):
-            pdfmetrics.registerFont(TTFont("VNFont", font_path))
-            return "VNFont"
-
-    return "Helvetica"
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
 # ============================================================
 # HIỂN THỊ KẾT QUẢ
 # ============================================================
