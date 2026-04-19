@@ -254,7 +254,7 @@ SHEET_ACCESS_LOGS = "Access_Logs"
 MAX_FAIL_ATTEMPTS = 5
 LOCKOUT_MINUTES = 30
 MAX_UNIQUE_SBD = 3
-
+TEST_MODE = True
 # ============================================================
 # IP
 # ============================================================
@@ -277,6 +277,9 @@ def get_client_ip() -> str:
 def check_release_time():
     vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
     now = datetime.now(vn_tz)
+
+    if TEST_MODE:
+        return True, 0, now
 
     release_time = vn_tz.localize(datetime(2026, 4, 20, 12, 0, 0))
     remaining = int((release_time - now).total_seconds())
@@ -494,7 +497,7 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
 def generate_qr(data):
     def parse(val):
         try:
-            return float(val) / 100
+            return float(val) 
         except Exception:
             return 0.0
 
@@ -519,8 +522,8 @@ def generate_qr(data):
 
 def generate_pdf(data):
     try:
-        diem_hk2 = float(data.get("Điểm tổng kết HK2", 0)) / 100
-        diem_tbm_cn = float(data.get("Điểm TBM Công nghệ", 0)) / 100
+        diem_hk2 = float(data.get("Điểm tổng kết HK2", 0))
+        diem_tbm_cn = float(data.get("Điểm TBM Công nghệ", 0)) 
         tong_diem = diem_hk2 + diem_tbm_cn
     except Exception:
         diem_hk2 = 0.0
@@ -559,7 +562,7 @@ def display_score_result(data: dict):
         if val is None or str(val).strip() == "":
             return None
         try:
-            return float(val) / 100
+            return float(val)
         except Exception:
             return None
 
@@ -725,7 +728,7 @@ def main():
             display_score_result(data)
 
             try:
-                diem_tbm_cn = float(data.get("Điểm TBM Công nghệ", 0)) / 100
+                diem_tbm_cn = float(data.get("Điểm TBM Công nghệ", 0)) 
             except Exception:
                 diem_tbm_cn = 0.0
 
