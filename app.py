@@ -19,6 +19,10 @@ import streamlit as st
 from google.oauth2.service_account import Credentials
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.pagesizes import A4
+import os
 
 # ============================================================
 # CẤU HÌNH TRANG
@@ -519,41 +523,35 @@ def generate_qr(data):
     buf.seek(0)
     return buf
 
-
-def generate_pdf(data):
-    try:
-        diem_hk2 = float(data.get("Điểm tổng kết HK2", 0))
-        diem_tbm_cn = float(data.get("Điểm TBM Công nghệ", 0)) 
-        tong_diem = diem_hk2 + diem_tbm_cn
-    except Exception:
-        diem_hk2 = 0.0
-        diem_tbm_cn = 0.0
-        tong_diem = 0.0
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer)
-    styles = getSampleStyleSheet()
-
-    content = [
-        Paragraph("BẢNG KẾT QUẢ HỌC TẬP", styles["Title"]),
-        Spacer(1, 20),
-        Paragraph(f"Họ và Tên: {data.get('Họ và Tên', '')}", styles["Normal"]),
-        Spacer(1, 8),
-        Paragraph(f"Ngày sinh: {data.get('Ngày sinh', '')}", styles["Normal"]),
-        Spacer(1, 8),
-        Paragraph(f"Số báo danh: {data.get('Số báo danh', '')}", styles["Normal"]),
-        Spacer(1, 12),
-        Paragraph(f"Điểm tổng kết HK2: {diem_hk2:.2f}", styles["Normal"]),
-        Spacer(1, 8),
-        Paragraph(f"Điểm TBM Công nghệ: {diem_tbm_cn:.2f}", styles["Normal"]),
-        Spacer(1, 12),
-        Paragraph(f"Tổng điểm hiển thị: {tong_diem:.2f} / 20.0", styles["Normal"]),
+def register_vietnamese_font():
+    possible_fonts = [
+        "DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf",
     ]
 
-    doc.build(content)
-    buffer.seek(0)
-    return buffer
+    for font_path in possible_fonts:
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont("VNFont", font_path))
+            return "VNFont"
 
+    return "Helvetica"
+
+def register_vietnamese_font():
+    possible_fonts = [
+        "DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+    ]
+
+    for font_path in possible_fonts:
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont("VNFont", font_path))
+            return "VNFont"
+
+    return "Helvetica"
 # ============================================================
 # HIỂN THỊ KẾT QUẢ
 # ============================================================
