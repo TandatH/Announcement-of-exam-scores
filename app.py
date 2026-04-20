@@ -258,7 +258,7 @@ SHEET_ACCESS_LOGS = "Access_Logs"
 MAX_FAIL_ATTEMPTS = 5
 LOCKOUT_MINUTES = 30
 MAX_UNIQUE_SBD = 3
-TEST_MODE = True
+TEST_MODE = False
 # ============================================================
 # IP
 # ============================================================
