@@ -1009,6 +1009,16 @@ def main():
         render_khoi8_mode()
     else:
         render_closed_mode()
+        # ===== HIỂN THỊ THÔNG BÁO =====
+    if mode == "khoi9":
+        st.markdown("📢 ĐANG TRA CỨU ĐIỂM KHỐI 9 (21–23/04)")
+    
+    elif mode == "khoi8":
+        st.markdown("📢 TRA CỨU SỐ BÁO DANH KHỐI 8 (24–26/04)")
+    
+    else:
+        st.error("⏳ Hệ thống chưa mở hoặc đã đóng")
+        return
 
 def render_footer():
     st.markdown(
