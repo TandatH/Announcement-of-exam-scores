@@ -8,7 +8,6 @@
 
 import io
 import re
-import time
 from datetime import datetime, timedelta
 
 import gspread
@@ -259,7 +258,6 @@ SHEET_ACCESS_LOGS = "Access_Logs"
 MAX_FAIL_ATTEMPTS = 5
 LOCKOUT_MINUTES = 30
 MAX_UNIQUE_SBD = 3
-TEST_MODE = True
 # ============================================================
 # IP
 # ============================================================
@@ -279,48 +277,20 @@ def get_client_ip() -> str:
 # ============================================================
 # THỜI GIAN CÔNG BỐ
 # ============================================================
-def check_release_time():
+def get_current_mode() -> str:
     vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
     now = datetime.now(vn_tz)
 
-    if TEST_MODE:
-        return True, 0, now
+    khoi9_start = vn_tz.localize(datetime(2026, 4, 21, 0, 0, 0))
+    khoi9_end = vn_tz.localize(datetime(2026, 4, 23, 23, 59, 59))
+    khoi8_start = vn_tz.localize(datetime(2026, 4, 24, 0, 0, 0))
+    khoi8_end = vn_tz.localize(datetime(2026, 4, 26, 23, 59, 59))
 
-    release_time = vn_tz.localize(datetime(2026, 4, 20, 12, 0, 0))
-    remaining = int((release_time - now).total_seconds())
-
-    if remaining > 0:
-        return False, remaining, release_time
-    return True, 0, release_time
-
-
-def get_current_mode():
-    """
-    Xác định chế độ hoạt động theo thời gian:
-    - 21/04 → 23/04: khối 9
-    - 24/04 → 26/04: khối 8
-    - ngoài ra: đóng
-    """
-
-    vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
-    now = datetime.now(vn_tz)
-
-    # ===== KHỐI 9 =====
-    start_khoi9 = vn_tz.localize(datetime(2026, 4, 21, 0, 0, 0))
-    end_khoi9   = vn_tz.localize(datetime(2026, 4, 23, 23, 59, 59))
-
-    # ===== KHỐI 8 =====
-    start_khoi8 = vn_tz.localize(datetime(2026, 4, 24, 0, 0, 0))
-    end_khoi8   = vn_tz.localize(datetime(2026, 4, 26, 23, 59, 59))
-
-    if start_khoi9 <= now <= end_khoi9:
+    if khoi9_start <= now <= khoi9_end:
         return "khoi9"
-
-    elif start_khoi8 <= now <= end_khoi8:
+    if khoi8_start <= now <= khoi8_end:
         return "khoi8"
-
-    else:
-        return "closed"
+    return "closed"
 
 # ============================================================
 # GOOGLE SHEETS
@@ -835,6 +805,25 @@ def render_page_header():
     )
 
 
+def render_mode_notice(mode: str):
+    messages = {
+        "khoi9": "ĐANG TRA CỨU ĐIỂM KHỐI 9 (21–23/04)",
+        "khoi8": "TRA CỨU SỐ BÁO DANH KHỐI 8 (24–26/04)",
+        "closed": "⏳ Hệ thống tra cứu chưa mở hoặc đã kết thúc",
+    }
+
+    st.markdown(
+        f"""
+        <div style="margin:-8px 0 24px; text-align:center; padding:14px 18px; background:rgba(184,146,42,0.10); border:1px solid rgba(184,146,42,0.28); border-radius:14px;">
+            <div style="color:#e8d5a3; font-size:0.82rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;">
+                {messages.get(mode, messages["closed"])}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_khoi9_mode(client_ip: str):
     pre_check = check_security(client_ip, sbd_dang_tra="__pre_check__")
     if not pre_check["allowed"] and "nhập sai quá nhiều" in pre_check["reason"]:
@@ -940,6 +929,18 @@ def render_khoi8_mode():
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        """
+        <div style="text-align:center; padding:18px 12px; background:rgba(255,255,255,0.025); border:1px solid rgba(184,146,42,0.20); border-radius:14px; color:rgba(255,255,255,0.78); line-height:1.7;">
+            Há»‡ thá»‘ng Ä‘ang má»Ÿ giai Ä‘oáº¡n tra cá»©u sá»‘ bÃ¡o danh cho khá»‘i 8.<br/>
+            Form nháº­p liá»‡u sáº½ Ä‘Æ°á»£c bá»• sung á»Ÿ bÆ°á»›c chá»‰nh sá»­a tiáº¿p theo.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+    return
+
     with st.form("lookup_form_khoi8", clear_on_submit=False):
         ho_ten_input = st.text_input(
             "👤 Họ và tên",
@@ -1002,22 +1003,13 @@ def main():
     mode = get_current_mode()
     client_ip = get_client_ip()
     render_page_header()
+    render_mode_notice(mode)
 
     if mode == "khoi9":
         render_khoi9_mode(client_ip)
     elif mode == "khoi8":
         render_khoi8_mode()
     else:
-        render_closed_mode()
-        # ===== HIỂN THỊ THÔNG BÁO =====
-    if mode == "khoi9":
-        st.markdown("📢 ĐANG TRA CỨU ĐIỂM KHỐI 9 (21–23/04)")
-    
-    elif mode == "khoi8":
-        st.markdown("📢 TRA CỨU SỐ BÁO DANH KHỐI 8 (24–26/04)")
-    
-    else:
-        st.error("⏳ Hệ thống chưa mở hoặc đã đóng")
         return
 
 def render_footer():
