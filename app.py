@@ -935,8 +935,8 @@ def render_khoi8_mode():
     st.markdown(
         """
         <div style="text-align:center; padding:18px 12px; background:rgba(255,255,255,0.025); border:1px solid rgba(184,146,42,0.20); border-radius:14px; color:rgba(255,255,255,0.78); line-height:1.7;">
-            Há»‡ thá»‘ng Ä‘ang má»Ÿ giai Ä‘oáº¡n tra cá»©u sá»‘ bÃ¡o danh cho khá»‘i 8.<br/>
-            Form nháº­p liá»‡u sáº½ Ä‘Æ°á»£c bá»• sung á»Ÿ bÆ°á»›c chá»‰nh sá»­a tiáº¿p theo.
+            Hệ thống đang mở giai đoạn tra cứu số báo danh cho khối 8.<br/>
+            Form nhập liệu sẽ được bổ sung ở bước chỉnh sửa tiếp theo.
         </div>
         """,
         unsafe_allow_html=True,
