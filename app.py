@@ -294,20 +294,33 @@ def check_release_time():
     return True, 0, release_time
 
 
-def get_current_mode() -> str:
+def get_current_mode():
+    """
+    Xác định chế độ hoạt động theo thời gian:
+    - 21/04 → 23/04: khối 9
+    - 24/04 → 26/04: khối 8
+    - ngoài ra: đóng
+    """
+
     vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
     now = datetime.now(vn_tz)
 
-    khoi9_start = vn_tz.localize(datetime(2026, 4, 21, 0, 0, 0))
-    khoi9_end = vn_tz.localize(datetime(2026, 4, 23, 23, 59, 59))
-    khoi8_start = vn_tz.localize(datetime(2026, 4, 24, 0, 0, 0))
-    khoi8_end = vn_tz.localize(datetime(2026, 4, 26, 23, 59, 59))
+    # ===== KHỐI 9 =====
+    start_khoi9 = vn_tz.localize(datetime(2026, 4, 21, 0, 0, 0))
+    end_khoi9   = vn_tz.localize(datetime(2026, 4, 23, 23, 59, 59))
 
-    if khoi9_start <= now <= khoi9_end:
+    # ===== KHỐI 8 =====
+    start_khoi8 = vn_tz.localize(datetime(2026, 4, 24, 0, 0, 0))
+    end_khoi8   = vn_tz.localize(datetime(2026, 4, 26, 23, 59, 59))
+
+    if start_khoi9 <= now <= end_khoi9:
         return "khoi9"
-    if khoi8_start <= now <= khoi8_end:
+
+    elif start_khoi8 <= now <= end_khoi8:
         return "khoi8"
-    return "closed"
+
+    else:
+        return "closed"
 
 # ============================================================
 # GOOGLE SHEETS
