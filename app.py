@@ -942,7 +942,7 @@ def render_khoi8_mode():
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
-    return
+    
 
     with st.form("lookup_form_khoi8", clear_on_submit=False):
         ho_ten_input = st.text_input(
