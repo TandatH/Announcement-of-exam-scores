@@ -258,6 +258,7 @@ SHEET_ACCESS_LOGS = "Access_Logs"
 MAX_FAIL_ATTEMPTS = 5
 LOCKOUT_MINUTES = 30
 MAX_UNIQUE_SBD = 3
+FORCE_MODE = "khoi8"
 # ============================================================
 # IP
 # ============================================================
@@ -278,6 +279,8 @@ def get_client_ip() -> str:
 # THỜI GIAN CÔNG BỐ
 # ============================================================
 def get_current_mode() -> str:
+  if FORCE_MODE in {"khoi9", "khoi8", "closed"}:
+    return FORCE_MODE
     vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
     now = datetime.now(vn_tz)
 
