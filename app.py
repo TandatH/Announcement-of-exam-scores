@@ -325,8 +325,10 @@ def load_score_data() -> pd.DataFrame:
 
     try:
         ws = spreadsheet.worksheet(SHEET_DIEM_THI)
-        records = ws.get_all_records()
-        return pd.DataFrame(records) if records else pd.DataFrame()
+        values = ws.get_all_values()
+        if not values or len(values) < 2:
+            return pd.DataFrame()
+        return pd.DataFrame(values[1:], columns=values[0])
     except gspread.exceptions.WorksheetNotFound:
         st.error(f"❌ Không tìm thấy tab '{SHEET_DIEM_THI}'.")
         return pd.DataFrame()
@@ -351,6 +353,29 @@ def load_student_lookup_data() -> pd.DataFrame:
     except Exception as e:
         st.error(f"❌ Lỗi đọc dữ liệu từ sheet '{SHEET_HOC_SINH}': {e}")
         return pd.DataFrame()
+
+def parse_score_value(val):
+    if val is None:
+        return None
+
+    text = str(val).strip()
+    if not text:
+        return None
+
+    text = text.replace(" ", "")
+
+    if "," in text and "." in text:
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif "," in text:
+        text = text.replace(",", ".")
+
+    try:
+        return float(text)
+    except Exception:
+        return None
 
 # ============================================================
 # ACCESS LOGS
@@ -593,8 +618,8 @@ def generate_qr(data):
         except Exception:
             return 0.0
 
-    diem_hk2 = parse(data.get("Điểm tổng kết HK2"))
-    diem_tbm_cn = parse(data.get("Điểm TBM Công nghệ"))
+    diem_hk2 = parse_score_value(data.get("Điểm tổng kết HK2")) or 0.0
+    diem_tbm_cn = parse_score_value(data.get("Điểm TBM Công nghệ")) or 0.0
     tong_diem = diem_hk2 + diem_tbm_cn
 
     qr_data = (
@@ -635,8 +660,8 @@ def generate_pdf(data):
         except Exception:
             return 0.0
 
-    diem_hk2 = parse_score(data.get("Điểm tổng kết HK2"))
-    diem_tbm_cn = parse_score(data.get("Điểm TBM Công nghệ"))
+    diem_hk2 = parse_score_value(data.get("Điểm tổng kết HK2")) or 0.0
+    diem_tbm_cn = parse_score_value(data.get("Điểm TBM Công nghệ")) or 0.0
     tong_diem = diem_hk2 + diem_tbm_cn
 
     buffer = io.BytesIO()
@@ -689,8 +714,8 @@ def display_score_result(data: dict):
         except Exception:
             return None
 
-    diem_hk2 = parse_diem(data.get("Điểm tổng kết HK2"))
-    diem_tbm_cn = parse_diem(data.get("Điểm TBM Công nghệ"))
+    diem_hk2 = parse_score_value(data.get("Điểm tổng kết HK2"))
+    diem_tbm_cn = parse_score_value(data.get("Điểm TBM Công nghệ"))
 
     co_diem = [d for d in [diem_hk2, diem_tbm_cn] if d is not None]
     tong_diem = sum(co_diem) if co_diem else None
@@ -885,7 +910,7 @@ def render_khoi9_mode(client_ip: str):
         display_score_result(data)
 
         try:
-            diem_tbm_cn = float(data.get("Điểm TBM Công nghệ", 0))
+            diem_tbm_cn = parse_score_value(data.get("Điểm TBM Công nghệ")) or 0.0
         except Exception:
             diem_tbm_cn = 0.0
 
