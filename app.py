@@ -284,8 +284,8 @@ def get_current_mode() -> str:
 
     khoi9_start = vn_tz.localize(datetime(2026, 4, 21, 0, 0, 0))
     khoi9_end = vn_tz.localize(datetime(2026, 4, 23, 23, 59, 59))
-    khoi8_start = vn_tz.localize(datetime(2026, 4, 24, 0, 0, 0))
-    khoi8_end = vn_tz.localize(datetime(2026, 4, 26, 23, 59, 59))
+    khoi8_start = vn_tz.localize(datetime(2026, 4, 28, 0, 0, 0))
+    khoi8_end = vn_tz.localize(datetime(2026, 5, 1, 23, 59, 59))
 
     if khoi9_start <= now <= khoi9_end:
         return "khoi9"
@@ -501,16 +501,17 @@ def normalize_name_value(name_val: str) -> str:
 def lookup_score(ngay_sinh: str, sbd: str) -> dict:
     df = load_score_data()
     if df.empty:
-        st.error("❌ Không tải được dữ liệu điểm thi từ Google Sheets.")
+        st.error("❌ Không tải được dữ liệu điểm từ Google Sheets.")
         return {"found": False, "data": None}
 
     required_columns = [
         "Họ và Tên",
         "Ngày sinh",
         "Số báo danh",
-        "Điểm tổng kết HK2",
-        "Điểm TBM Công nghệ",
+        "TX2",
+        "30%CHK2",
     ]
+
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
         st.error(f"❌ Sheet '{SHEET_DIEM_THI}' đang thiếu cột: {', '.join(missing_cols)}")
@@ -518,29 +519,30 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
 
     sbd_input = str(sbd).strip().zfill(6)
     df["_sbd"] = df["Số báo danh"].astype(str).str.strip().str.zfill(6)
-
     df["_ngay_sinh"] = df["Ngày sinh"].apply(normalize_dob_value)
 
     input_date_parsed = pd.to_datetime(ngay_sinh, dayfirst=True, errors="coerce")
     if pd.isna(input_date_parsed):
-        st.error("❌ Ngày sinh nhập không đúng định dạng (DD/MM/YYYY).")
+        st.error("❌ Ngày sinh nhập không đúng định dạng DD/MM/YYYY.")
         return {"found": False, "data": None}
 
     input_date = input_date_parsed.strftime("%d/%m/%Y")
 
     matched = df[(df["_sbd"] == sbd_input) & (df["_ngay_sinh"] == input_date)].copy()
+
     if matched.empty:
         return {"found": False, "data": None}
 
     row = matched.iloc[0]
+
     return {
         "found": True,
         "data": {
             "Họ và Tên": str(row.get("Họ và Tên", "")).strip(),
             "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
             "Số báo danh": str(row.get("Số báo danh", "")).strip(),
-            "Điểm tổng kết HK2": row.get("Điểm tổng kết HK2", "N/A"),
-            "Điểm TBM Công nghệ": row.get("Điểm TBM Công nghệ", "N/A"),
+            "TX2": row.get("TX2", "N/A"),
+            "30%CHK2": row.get("30%CHK2", "N/A"),
         },
     }
 
@@ -949,35 +951,29 @@ và bước tới một tương lai **tươi sáng, bản lĩnh và thành công
 
 
 def render_khoi8_mode():
+    client_ip = get_client_ip()
+
     st.markdown('<div class="lookup-card">', unsafe_allow_html=True)
     st.markdown(
-        '<p class="card-hint">Nhập Họ và Tên cùng Ngày tháng năm sinh để tra cứu số báo danh</p>',
+        '<p class="card-hint">Nhập Số báo danh và Ngày tháng năm sinh để tra cứu điểm lớp 8</p>',
         unsafe_allow_html=True,
     )
-
-    st.markdown(
-        """
-        <div style="text-align:center; padding:18px 12px; background:rgba(255,255,255,0.025); border:1px solid rgba(184,146,42,0.20); border-radius:14px; color:rgba(255,255,255,0.78); line-height:1.7;">
-            Hệ thống đang mở giai đoạn tra cứu số báo danh cho khối 8.<br/>
-            Form nhập liệu sẽ được bổ sung ở bước chỉnh sửa tiếp theo.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-    
 
     with st.form("lookup_form_khoi8", clear_on_submit=False):
-        ho_ten_input = st.text_input(
-            "👤 Họ và tên",
-            placeholder="VD: Nguyễn Văn A",
+        sbd_input = st.text_input(
+            "🔢 Số báo danh",
+            placeholder="VD: 012345",
+            max_chars=6,
+            help="Nhập đúng 6 chữ số",
         )
+
         ngay_sinh_input = st.text_input(
             "📅 Ngày tháng năm sinh",
             placeholder="VD: 15/08/2012",
             help="Định dạng: DD/MM/YYYY",
         )
-        submitted = st.form_submit_button("Tra cứu số báo danh")
+
+        submitted = st.form_submit_button("🔍 Xem điểm")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -985,8 +981,12 @@ def render_khoi8_mode():
         return
 
     errors = []
-    if not ho_ten_input.strip():
-        errors.append("Vui lòng nhập **Họ và tên**.")
+
+    if not sbd_input.strip():
+        errors.append("Vui lòng nhập **Số báo danh**.")
+    elif not validate_sbd(sbd_input):
+        errors.append("**Số báo danh** phải đúng **6 chữ số** — ví dụ: `012345`.")
+
     if not ngay_sinh_input.strip():
         errors.append("Vui lòng nhập **Ngày tháng năm sinh**.")
 
@@ -995,15 +995,57 @@ def render_khoi8_mode():
             st.warning(f"⚠️ {err}")
         return
 
-    with st.spinner("Đang tra cứu số báo danh..."):
-        result = lookup_sbd_by_name_dob(ho_ten_input, ngay_sinh_input)
+    sbd_clean = sbd_input.strip()
+    ngay_sinh_clean = ngay_sinh_input.strip()
+
+    with st.spinner("Đang tra cứu điểm..."):
+        result = lookup_score(ngay_sinh_clean, sbd_clean)
 
     if result["found"]:
-        st.success("✅ Tìm thấy số báo danh!")
-        display_sbd_result(result["data"])
-    else:
-        st.error(f"❌ {result.get('message', 'Không tìm thấy thông tin học sinh.')}")
+        st.success("✅ Tìm thấy kết quả!")
 
+        data = result["data"]
+
+        tx2 = parse_score_value(data.get("TX2"))
+        chk2_30 = parse_score_value(data.get("30%CHK2"))
+
+        st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
+
+        st.markdown(
+            f"""
+            <div class="result-header">
+                <div style="font-size:1.8rem; margin-bottom:10px;">🎓</div>
+                <div class="result-name">{data.get("Họ và Tên", "Học sinh")}</div>
+                <div class="result-info">
+                    📅 {data.get("Ngày sinh", "")} &nbsp;·&nbsp; 🔢 SBD:
+                    <strong style="color:#e8c96d">{data.get("Số báo danh", "")}</strong>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown('<div class="result-body">', unsafe_allow_html=True)
+        st.markdown('<p class="score-label">KẾT QUẢ ĐIỂM LỚP 8</p>', unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2, gap="large")
+
+        with col1:
+            st.metric(
+                label="📘 TX2",
+                value=f"{tx2:.2f}" if tx2 is not None else "Chưa có",
+            )
+
+        with col2:
+            st.metric(
+                label="📝 30% CHK2",
+                value=f"{chk2_30:.2f}" if chk2_30 is not None else "Chưa có",
+            )
+
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+    else:
+        st.error("❌ Không tìm thấy thông tin. Vui lòng kiểm tra lại Số báo danh và Ngày sinh.")
 
 def render_closed_mode():
     st.markdown('<div class="lookup-card">', unsafe_allow_html=True)
