@@ -836,7 +836,7 @@ def render_page_header():
 def render_mode_notice(mode: str):
     messages = {
         "khoi9": "ĐANG TRA CỨU ĐIỂM KHỐI 9 (21–23/04)",
-        "khoi8": "TRA CỨU SỐ BÁO DANH KHỐI 8 (24–26/04)",
+        "khoi8": "TRA CỨU SỐ ĐIỂM TX2 VÀ 30%THI KHỐI 8 (28/4–1/05)",
         "closed": "⏳ Hệ thống tra cứu chưa mở hoặc đã kết thúc",
     }
 
