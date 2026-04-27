@@ -252,7 +252,7 @@ st.markdown(
 # ============================================================
 # HẰNG SỐ
 # ============================================================
-SHEET_DIEM_THI = "TraCuu1"
+SHEET_DIEM_THI = "TongHopHocSinh"
 SHEET_HOC_SINH = "TongHopHocSinh"
 SHEET_ACCESS_LOGS = "Access_Logs"
 MAX_FAIL_ATTEMPTS = 5
