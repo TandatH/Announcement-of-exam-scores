@@ -743,17 +743,10 @@ def display_score_result(data: dict):
     st.markdown('<div class="result-body">', unsafe_allow_html=True)
     st.markdown('<p class="score-label">KẾT QUẢ HỌC TẬP</p>', unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2, gap="large")
-    with col1:
-        st.metric(
-            label="📘 ĐIỂM TỔNG KẾT HK2",
-            value=f"{diem_hk2:.2f}" if diem_hk2 is not None else "Chưa có",
-        )
-    with col2:
-        st.metric(
-            label="🏅 ĐIỂM TBM CÔNG NGHỆ",
-            value=f"{diem_tbm_cn:.2f}" if diem_tbm_cn is not None else "Chưa có",
-        )
+    st.metric(
+        label="📝 ĐIỂM THI CUỐI HK2",
+        value=f"{diem_chk2:.2f}" if diem_chk2 is not None else "Chưa có",
+    )
 
     st.markdown(
         f"""
@@ -834,7 +827,7 @@ def render_page_header():
 def render_mode_notice(mode: str):
     messages = {
         "khoi9": "ĐANG TRA CỨU ĐIỂM KHỐI 9 (21–23/04)",
-        "khoi8": "TRA CỨU SỐ ĐIỂM TX2 VÀ 30%THI KHỐI 8 (28/4–1/05)",
+        "khoi8": "TRA CỨU ĐIỂM THI CUỐI HK2 KHỐI 8",
         "closed": "⏳ Hệ thống tra cứu chưa mở hoặc đã kết thúc",
     }
 
