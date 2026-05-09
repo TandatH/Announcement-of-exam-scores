@@ -1000,7 +1000,7 @@ def render_khoi8_mode():
         diem_chk2 = parse_score_value(data.get("Điểm CHK2"))
 
         st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
-
+        
         st.markdown(
             f"""
             <div class="result-header">
@@ -1014,28 +1014,16 @@ def render_khoi8_mode():
             """,
             unsafe_allow_html=True,
         )
-
+        
         st.markdown('<div class="result-body">', unsafe_allow_html=True)
         st.markdown('<p class="score-label">KẾT QUẢ ĐIỂM LỚP 8</p>', unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2, gap="large")
-
-        with col1:
-            st.metric(
-                label="📘 TX2",
-                value=f"{tx2:.2f}" if tx2 is not None else "Chưa có",
-            )
-
-        with col2:
-            st.metric(
-                label="📝 30% CHK2",
-                value=f"{chk2_30:.2f}" if chk2_30 is not None else "Chưa có",
-            )
-
+        
+        st.metric(
+            label="📝 ĐIỂM THI CUỐI HK2",
+            value=f"{diem_chk2:.2f}" if diem_chk2 is not None else "Chưa có",
+        )
+        
         st.markdown("</div></div>", unsafe_allow_html=True)
-
-    else:
-        st.error("❌ Không tìm thấy thông tin. Vui lòng kiểm tra lại Số báo danh và Ngày sinh.")
 
 def render_closed_mode():
     st.markdown('<div class="lookup-card">', unsafe_allow_html=True)
