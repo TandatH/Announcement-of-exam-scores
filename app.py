@@ -505,12 +505,11 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
         return {"found": False, "data": None}
 
     required_columns = [
-        "Họ và Tên",
-        "Ngày sinh",
-        "Số báo danh",
-        "TX2",
-        "30%CHK2",
-    ]
+      "Họ và Tên",
+      "Ngày sinh",
+      "Số báo danh",
+      "Điểm CHK2",
+            ]
 
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
