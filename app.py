@@ -1004,8 +1004,7 @@ def render_khoi8_mode():
 
         data = result["data"]
 
-        tx2 = parse_score_value(data.get("TX2"))
-        chk2_30 = parse_score_value(data.get("30%CHK2"))
+        diem_chk2 = parse_score_value(data.get("Điểm CHK2"))
 
         st.markdown('<div class="result-wrapper">', unsafe_allow_html=True)
 
