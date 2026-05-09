@@ -540,8 +540,7 @@ def lookup_score(ngay_sinh: str, sbd: str) -> dict:
             "Họ và Tên": str(row.get("Họ và Tên", "")).strip(),
             "Ngày sinh": str(row.get("Ngày sinh", "")).strip(),
             "Số báo danh": str(row.get("Số báo danh", "")).strip(),
-            "TX2": row.get("TX2", "N/A"),
-            "30%CHK2": row.get("30%CHK2", "N/A"),
+            "Điểm CHK2": row.get("Điểm CHK2", "N/A"),
         },
     }
 
