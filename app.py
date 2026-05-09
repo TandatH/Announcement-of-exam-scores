@@ -284,8 +284,8 @@ def get_current_mode() -> str:
 
     khoi9_start = vn_tz.localize(datetime(2026, 4, 21, 0, 0, 0))
     khoi9_end = vn_tz.localize(datetime(2026, 4, 23, 23, 59, 59))
-    khoi8_start = vn_tz.localize(datetime(2026, 4, 28, 0, 0, 0))
-    khoi8_end = vn_tz.localize(datetime(2026, 5, 1, 23, 59, 59))
+    khoi8_start = vn_tz.localize(datetime(2026, 5, 09, 9, 0, 0))
+    khoi8_end = vn_tz.localize(datetime(2026, 5, 15, 23, 59, 59))
 
     if khoi9_start <= now <= khoi9_end:
         return "khoi9"
